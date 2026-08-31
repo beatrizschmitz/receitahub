@@ -6,8 +6,9 @@ import { useSubscription } from "@/contexts/SubscriptionContext";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { PLAN_EMOJI, PLAN_LABEL } from "@/lib/plans";
 
-// Navegação principal: fica ao lado do logo a partir de lg (1024px) e, abaixo
-// disso — tablet e celular —, vira a primeira seção da gaveta.
+// Navegação principal: a partir de lg (1024px) ocupa o vão entre o logo e o
+// menu, centralizada nele; abaixo disso — tablet e celular — vira a primeira
+// seção da gaveta.
 const MAIN_NAV = [
   { to: "/receitas", label: "receitas", authOnly: false },
   { to: "/minhas-receitas", label: "minhas receitas", authOnly: true },
@@ -48,8 +49,10 @@ export function AppHeader() {
           receitahub
         </Link>
 
-        {/* Menu principal ao lado do logo; no mobile ele desce para a gaveta */}
-        <nav className="hidden lg:flex items-center gap-7">
+        {/* flex-1 + justify-center centraliza os links no espaço que sobra entre o
+            logo e o hambúrguer — diferente de centralizar na barra inteira, que
+            com 4 links encostaria no logo perto de 1024px. */}
+        <nav className="hidden lg:flex flex-1 justify-center items-center gap-7">
           {navItems.map((item) => {
             const active = path === item.to;
             return (
@@ -67,6 +70,8 @@ export function AppHeader() {
           })}
         </nav>
 
+        {/* ml-auto é no-op quando o nav tem flex-1; serve abaixo de lg, onde o
+            nav está hidden e nada mais empurra o botão para a direita. */}
         <div className="ml-auto flex items-center shrink-0">
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger

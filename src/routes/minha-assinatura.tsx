@@ -31,7 +31,7 @@ export const Route = createFileRoute("/minha-assinatura")({
         content: "Gerencie seu plano do receitahub: troque de plano ou cancele quando quiser.",
       },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
 });

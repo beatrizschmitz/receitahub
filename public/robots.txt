@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://receitahub.lovable.app/sitemap.xml
+Sitemap: https://receitahub.vercel.app/sitemap.xml

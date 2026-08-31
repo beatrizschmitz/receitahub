@@ -4,6 +4,7 @@ import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import { PlanGateProvider } from "@/contexts/PlanGateContext";
 import { PantryChat } from "@/components/PantryChat";
 import { AppHeader } from "@/components/AppHeader";
+import { OG_IMAGE_URL } from "@/lib/site";
 
 import appCss from "../styles.css?url";
 
@@ -36,22 +37,32 @@ export const Route = createRootRoute({
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "receitahub" },
       { name: "description", content: "An AI-powered recipe app with a pantry manager and chat assistant." },
-      { name: "author", content: "Lovable" },
+      { name: "author", content: "receitahub" },
       { property: "og:title", content: "receitahub" },
       { property: "og:description", content: "An AI-powered recipe app with a pantry manager and chat assistant." },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "receitahub" },
       { name: "twitter:description", content: "An AI-powered recipe app with a pantry manager and chat assistant." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/3d1173ef-a79e-4a15-91ff-39ede05fe009/id-preview-fa0b832f--0d677bdc-4691-464d-86f4-bc9f540e0476.lovable.app-1777255675199.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/3d1173ef-a79e-4a15-91ff-39ede05fe009/id-preview-fa0b832f--0d677bdc-4691-464d-86f4-bc9f540e0476.lovable.app-1777255675199.png" },
+      { property: "og:image", content: OG_IMAGE_URL },
+      { name: "twitter:image", content: OG_IMAGE_URL },
+      // Nome do atalho quando o site é salvo na tela de início do iOS
+      { name: "apple-mobile-web-app-title", content: "receitahub" },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
       },
+      // Favicons (public/, gerados pelo RealFaviconGenerator). Não há index.html
+      // neste projeto — o shell HTML vem do RootShell abaixo, então é aqui que
+      // as tags precisam estar para o HeadContent renderizá-las.
+      { rel: "icon", type: "image/png", href: "/favicon-96x96.png", sizes: "96x96" },
+      { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+      // .ico fica por último: navegadores antigos param no primeiro que entendem
+      { rel: "shortcut icon", href: "/favicon.ico" },
+      { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
+      { rel: "manifest", href: "/site.webmanifest" },
     ],
   }),
   shellComponent: RootShell,

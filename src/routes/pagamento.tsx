@@ -29,7 +29,7 @@ export const Route = createFileRoute("/pagamento")({
         content: "Finalize sua assinatura do receitahub em uma tela de pagamento segura.",
       },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
 });

@@ -35,7 +35,7 @@ export const Route = createFileRoute("/dieta")({
         content: "Cardápio semanal com calorias, sob medida para o seu objetivo.",
       },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
 });

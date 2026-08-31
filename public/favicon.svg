@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 680 680"><metadata><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/"><rdf:Description><dc:creator>RealFaviconGenerator</dc:creator><dc:source>https://realfavicongenerator.net</dc:source></rdf:Description></rdf:RDF></metadata><rect x="140" y="140" width="400" height="400" rx="88" fill="#231a16"></rect><g stroke="#D9A0A8" stroke-width="14" stroke-linecap="round" fill="none">
+<line x1="255" y1="225" x2="255" y2="455"></line>
+<line x1="233" y1="225" x2="233" y2="295"></line>
+<line x1="255" y1="225" x2="255" y2="295"></line>
+<line x1="277" y1="225" x2="277" y2="295"></line>
+<path d="M233 225 Q233 300 255 300 Q277 300 277 225"></path>
+<path d="M420 225 C452 225 457 262 457 288 C457 316 439 325 420 325 L420 455"></path>
+</g></svg>

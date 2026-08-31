@@ -1,7 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect } from "react";
 
@@ -44,10 +43,16 @@ function LoginPage() {
 
   const handleGoogle = async () => {
     setError("");
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + "/minha-despensa",
+    // OAuth direto no Supabase. Antes isso passava pelo wrapper do Lovable, que
+    // montava um /~oauth/initiate — rota da hospedagem do Lovable, que não
+    // existe mais. Em caso de sucesso o navegador é redirecionado e nada abaixo
+    // desta chamada roda; a sessão é lida da URL de volta pelo próprio
+    // supabase-js (detectSessionInUrl vem ligado por padrão).
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/minha-despensa` },
     });
-    if (result.error) {
+    if (error) {
       setError("Erro ao entrar com Google.");
     }
   };

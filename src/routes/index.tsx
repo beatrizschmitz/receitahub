@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { recipes as catalogRecipes } from "@/data/recipes";
 import { RecipeCover, RecipePhotoCredit } from "@/components/RecipeCover";
+import { OG_IMAGE_URL } from "@/lib/site";
 
 export const Route = createFileRoute("/")({
   component: LandingPage,
@@ -14,7 +15,7 @@ export const Route = createFileRoute("/")({
       { title: "receitahub — cozinhe com o que você já tem" },
       { name: "description", content: "IA que transforma os ingredientes da sua despensa em receitas reais. Menos desperdício, mais sabor." },
       { property: "og:title", content: "receitahub — cozinhe com o que você já tem" },
-      { property: "og:image", content: heroImg },
+      { property: "og:image", content: OG_IMAGE_URL },
     ],
   }),
 });

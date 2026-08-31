@@ -23,7 +23,7 @@ export const Route = createFileRoute("/planos")({
           "Escolha entre gratuito, básico e premium e cozinhe melhor com o que você já tem em casa.",
       },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
 });

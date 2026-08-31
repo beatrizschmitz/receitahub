@@ -150,7 +150,7 @@ function RecipeDetailModal({ recipe, onClose, onDelete, onFavorite, onRate, onSa
                 onBlur={() => { if (notesDraft !== (recipe.notes ?? "")) onSaveNotes(recipe.id, notesDraft); }}
                 rows={2}
                 placeholder="ex: ficou ótimo, da próxima usar menos sal..."
-                className="w-full bg-charcoal border border-border rounded-xl p-3 text-cream placeholder:text-cream/30 text-sm focus:outline-none focus:border-blush/50 resize-none"
+                className="w-full bg-charcoal border border-border rounded-xl p-3 text-cream placeholder:text-cream/45 text-sm focus:outline-none focus:border-blush/50 resize-none"
               />
             </div>
           </div>

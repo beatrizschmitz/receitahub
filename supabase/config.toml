@@ -1,4 +1,4 @@
-project_id = "iqhcenrmnxndtprcvvzu"
+project_id = "pdttazmlagkynryfeznx"
 
 [functions.generate-recipes]
 verify_jwt = false

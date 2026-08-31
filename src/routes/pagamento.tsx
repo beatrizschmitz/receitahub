@@ -35,7 +35,7 @@ export const Route = createFileRoute("/pagamento")({
 });
 
 const inputClass =
-  "w-full rounded-xl bg-cream/[0.04] border border-border px-4 py-3 text-sm text-cream placeholder:text-cream/30 outline-none focus:border-blush/60 transition";
+  "w-full rounded-xl bg-cream/[0.04] border border-border px-4 py-3 text-sm text-cream placeholder:text-cream/45 outline-none focus:border-blush/60 transition";
 
 function maskCpf(v: string) {
   const d = v.replace(/\D/g, "").slice(0, 11);
@@ -168,7 +168,7 @@ function PaymentPage() {
               Sua assinatura <span className="text-blush">{PLAN_LABEL[plan]}</span> já está ativa.
               Renova em {new Date(confirmed.periodEnd).toLocaleDateString("pt-BR")}.
             </p>
-            <p className="text-xs text-cream/35 mt-4 font-mono break-all">
+            <p className="text-xs text-cream/55 mt-4 font-mono break-all">
               transação: {confirmed.transactionId}
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center mt-8">
@@ -261,7 +261,7 @@ function PaymentPage() {
             <section className="rounded-2xl border border-border p-6">
               <div className="flex items-center gap-2">
                 <h2 className="font-display italic text-xl text-blush">dados do cartão</h2>
-                <Lock className="w-4 h-4 text-cream/35" />
+                <Lock className="w-4 h-4 text-cream/55" />
               </div>
               <p className="text-xs text-cream/40 mt-2">
                 Enviados por HTTPS direto para o gateway de pagamento. Nunca ficam salvos no
@@ -355,7 +355,7 @@ function PaymentPage() {
               </span>
               <span className="text-cream text-lg">{planDef.price}</span>
             </div>
-            <p className="text-xs text-cream/35 mt-1">{planDef.priceNote} · cancele quando quiser</p>
+            <p className="text-xs text-cream/55 mt-1">{planDef.priceNote} · cancele quando quiser</p>
             <ul className="space-y-2 mt-6">
               {planDef.features
                 .filter((f) => f.included)

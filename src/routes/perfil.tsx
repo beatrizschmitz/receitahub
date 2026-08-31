@@ -2,6 +2,16 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/perfil")({
@@ -25,6 +35,7 @@ function ProfilePage() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [confirmWipe, setConfirmWipe] = useState(false);
 
   // Stats
   const [pantryCount, setPantryCount] = useState(0);
@@ -124,10 +135,7 @@ function ProfilePage() {
   };
 
   const handleDeleteAccount = async () => {
-    const ok = window.confirm(
-      "Tem certeza que quer apagar todos os seus dados (despensa e receitas)? Esta ação não pode ser desfeita.",
-    );
-    if (!ok) return;
+    setConfirmWipe(false);
     const [{ error: e1 }, { error: e2 }] = await Promise.all([
       supabase.from("pantry_items").delete().eq("user_id", session.user.id),
       supabase.from("user_recipes").delete().eq("user_id", session.user.id),
@@ -320,7 +328,7 @@ function ProfilePage() {
                     </div>
                   </div>
                   <button
-                    onClick={handleDeleteAccount}
+                    onClick={() => setConfirmWipe(true)}
                     className="px-4 py-2 rounded-full border border-blush/40 text-blush hover:bg-blush/10 transition text-sm"
                   >
                     apagar dados
@@ -331,6 +339,34 @@ function ProfilePage() {
           </>
         )}
       </section>
+
+      <AlertDialog open={confirmWipe} onOpenChange={setConfirmWipe}>
+        <AlertDialogContent className="max-w-md border-border bg-charcoal text-cream sm:rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display italic text-2xl font-normal text-blush">
+              apagar todos os seus dados?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-cream/60 leading-relaxed">
+              Sua despensa e todas as suas receitas salvas serão removidas. Essa ação não pode ser
+              desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-2 gap-2 sm:gap-0">
+            <AlertDialogCancel className="rounded-full border border-border bg-transparent px-6 py-2.5 text-sm text-cream/70 transition hover:border-cream/40 hover:bg-transparent hover:text-cream">
+              cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                void handleDeleteAccount();
+              }}
+              className="rounded-full bg-red-500/90 px-6 py-2.5 text-sm text-cream transition hover:bg-red-500"
+            >
+              apagar tudo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

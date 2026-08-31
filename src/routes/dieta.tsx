@@ -7,6 +7,16 @@ import { useSubscription } from "@/contexts/SubscriptionContext";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { generateDietPlan, type DietPlan } from "@/lib/ai.functions";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dieta")({
@@ -65,7 +75,7 @@ function DietPage() {
   );
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
-
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !session) navigate({ to: "/login" });
@@ -190,8 +200,10 @@ function DietPage() {
     toast.success("Plano renomeado! ✏️");
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm("Apagar este plano de dieta?")) return;
+  const handleDelete = async () => {
+    const id = deletingId;
+    if (!id) return;
+    setDeletingId(null);
     const { error } = await supabase.from("diet_plans").delete().eq("id", id);
     if (error) {
       toast.error("Não consegui apagar o plano.");
@@ -200,7 +212,6 @@ function DietPage() {
     setHistory((prev) => prev.filter((h) => h.id !== id));
     toast.success("Plano apagado. 🗑️");
   };
-
 
   return (
     <div className="min-h-screen bg-charcoal text-cream">
@@ -238,7 +249,7 @@ function DietPage() {
               value={objective}
               onChange={(e) => setObjective(e.target.value)}
               placeholder="ou escreva seu objetivo"
-              className="mt-3 w-full rounded-lg border border-border bg-charcoal px-4 py-2.5 text-sm text-cream placeholder:text-cream/30 focus:border-blush focus:outline-none"
+              className="mt-3 w-full rounded-lg border border-border bg-charcoal px-4 py-2.5 text-sm text-cream placeholder:text-cream/45 focus:border-blush focus:outline-none"
             />
           </div>
 
@@ -269,7 +280,7 @@ function DietPage() {
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
               placeholder="ex: treino 4x por semana, não gosto de peixe, cozinho só à noite"
-              className="mt-2 w-full rounded-lg border border-border bg-charcoal px-4 py-2.5 text-sm text-cream placeholder:text-cream/30 focus:border-blush focus:outline-none"
+              className="mt-2 w-full rounded-lg border border-border bg-charcoal px-4 py-2.5 text-sm text-cream placeholder:text-cream/45 focus:border-blush focus:outline-none"
             />
           </div>
 
@@ -333,7 +344,7 @@ function DietPage() {
                         className="flex-1 text-left text-xs text-cream/65 hover:text-blush transition"
                       >
                         {h.title || "plano"} ·{" "}
-                        <span className="text-cream/35">
+                        <span className="text-cream/55">
                           {new Date(h.created_at).toLocaleDateString("pt-BR")}
                         </span>
                       </button>
@@ -348,7 +359,7 @@ function DietPage() {
                         <Pencil size={14} />
                       </button>
                       <button
-                        onClick={() => handleDelete(h.id)}
+                        onClick={() => setDeletingId(h.id)}
                         aria-label="apagar plano"
                         className="rounded-full p-1.5 text-cream/45 hover:text-red-400 hover:bg-red-400/10 transition"
                       >
@@ -361,7 +372,6 @@ function DietPage() {
             </div>
           </section>
         )}
-
 
         {plan && (
           <section className="mt-10">
@@ -388,7 +398,7 @@ function DietPage() {
                         <span className="text-blush/80">{meal.meal}</span>
                         <span className="text-cream/80"> — {meal.name}</span>
                         {meal.calories ? (
-                          <span className="text-cream/35"> ({meal.calories} kcal)</span>
+                          <span className="text-cream/55"> ({meal.calories} kcal)</span>
                         ) : null}
                         {meal.description && (
                           <p className="text-cream/45 text-xs mt-0.5">{meal.description}</p>
@@ -413,6 +423,33 @@ function DietPage() {
           </section>
         )}
       </main>
+
+      <AlertDialog open={deletingId !== null} onOpenChange={(o) => !o && setDeletingId(null)}>
+        <AlertDialogContent className="max-w-md border-border bg-charcoal text-cream sm:rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display italic text-2xl font-normal text-blush">
+              apagar este plano?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-cream/60 leading-relaxed">
+              O cardápio salvo será removido da sua lista. Essa ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-2 gap-2 sm:gap-0">
+            <AlertDialogCancel className="rounded-full border border-border bg-transparent px-6 py-2.5 text-sm text-cream/70 transition hover:border-cream/40 hover:bg-transparent hover:text-cream">
+              manter
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                void handleDelete();
+              }}
+              className="rounded-full bg-blush px-6 py-2.5 text-sm text-charcoal transition hover:bg-blush-deep"
+            >
+              apagar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

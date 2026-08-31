@@ -16,6 +16,7 @@ import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as PagamentoRouteImport } from './routes/pagamento'
 import { Route as MinhasReceitasRouteImport } from './routes/minhas-receitas'
 import { Route as MinhaDespensaRouteImport } from './routes/minha-despensa'
+import { Route as MinhaAssinaturaRouteImport } from './routes/minha-assinatura'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ListaComprasRouteImport } from './routes/lista-compras'
 import { Route as FotoRouteImport } from './routes/foto'
@@ -58,6 +59,11 @@ const MinhaDespensaRoute = MinhaDespensaRouteImport.update({
   path: '/minha-despensa',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MinhaAssinaturaRoute = MinhaAssinaturaRouteImport.update({
+  id: '/minha-assinatura',
+  path: '/minha-assinatura',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -96,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/foto': typeof FotoRoute
   '/lista-compras': typeof ListaComprasRoute
   '/login': typeof LoginRoute
+  '/minha-assinatura': typeof MinhaAssinaturaRoute
   '/minha-despensa': typeof MinhaDespensaRoute
   '/minhas-receitas': typeof MinhasReceitasRoute
   '/pagamento': typeof PagamentoRoute
@@ -111,6 +118,7 @@ export interface FileRoutesByTo {
   '/foto': typeof FotoRoute
   '/lista-compras': typeof ListaComprasRoute
   '/login': typeof LoginRoute
+  '/minha-assinatura': typeof MinhaAssinaturaRoute
   '/minha-despensa': typeof MinhaDespensaRoute
   '/minhas-receitas': typeof MinhasReceitasRoute
   '/pagamento': typeof PagamentoRoute
@@ -127,6 +135,7 @@ export interface FileRoutesById {
   '/foto': typeof FotoRoute
   '/lista-compras': typeof ListaComprasRoute
   '/login': typeof LoginRoute
+  '/minha-assinatura': typeof MinhaAssinaturaRoute
   '/minha-despensa': typeof MinhaDespensaRoute
   '/minhas-receitas': typeof MinhasReceitasRoute
   '/pagamento': typeof PagamentoRoute
@@ -144,6 +153,7 @@ export interface FileRouteTypes {
     | '/foto'
     | '/lista-compras'
     | '/login'
+    | '/minha-assinatura'
     | '/minha-despensa'
     | '/minhas-receitas'
     | '/pagamento'
@@ -159,6 +169,7 @@ export interface FileRouteTypes {
     | '/foto'
     | '/lista-compras'
     | '/login'
+    | '/minha-assinatura'
     | '/minha-despensa'
     | '/minhas-receitas'
     | '/pagamento'
@@ -174,6 +185,7 @@ export interface FileRouteTypes {
     | '/foto'
     | '/lista-compras'
     | '/login'
+    | '/minha-assinatura'
     | '/minha-despensa'
     | '/minhas-receitas'
     | '/pagamento'
@@ -190,6 +202,7 @@ export interface RootRouteChildren {
   FotoRoute: typeof FotoRoute
   ListaComprasRoute: typeof ListaComprasRoute
   LoginRoute: typeof LoginRoute
+  MinhaAssinaturaRoute: typeof MinhaAssinaturaRoute
   MinhaDespensaRoute: typeof MinhaDespensaRoute
   MinhasReceitasRoute: typeof MinhasReceitasRoute
   PagamentoRoute: typeof PagamentoRoute
@@ -250,6 +263,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MinhaDespensaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/minha-assinatura': {
+      id: '/minha-assinatura'
+      path: '/minha-assinatura'
+      fullPath: '/minha-assinatura'
+      preLoaderRoute: typeof MinhaAssinaturaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -302,6 +322,7 @@ const rootRouteChildren: RootRouteChildren = {
   FotoRoute: FotoRoute,
   ListaComprasRoute: ListaComprasRoute,
   LoginRoute: LoginRoute,
+  MinhaAssinaturaRoute: MinhaAssinaturaRoute,
   MinhaDespensaRoute: MinhaDespensaRoute,
   MinhasReceitasRoute: MinhasReceitasRoute,
   PagamentoRoute: PagamentoRoute,

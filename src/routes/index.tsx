@@ -4,6 +4,7 @@ import stepImg from "@/assets/landing-step.jpg";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { recipes as catalogRecipes } from "@/data/recipes";
 
 export const Route = createFileRoute("/")({
   component: LandingPage,
@@ -46,6 +47,19 @@ type FeaturedRecipe = {
   description: string | null; ingredients: string[] | null; instructions: string | null;
   difficulty: string | null; diet: string[] | null; servings?: number;
 };
+
+// Catálogo curado local: último recurso quando não há receitas salvas nem IA disponível
+const FALLBACK_FEATURED: FeaturedRecipe[] = catalogRecipes.slice(0, 6).map((r) => ({
+  id: r.id,
+  title: r.title,
+  category: r.category,
+  time_minutes: r.time,
+  description: r.description,
+  ingredients: r.ingredients ?? null,
+  instructions: r.instructions ?? null,
+  difficulty: r.difficulty,
+  diet: r.diet,
+}));
 
 // Mini modal para receitas em destaque
 function FeaturedModal({ recipe, onClose }: { recipe: FeaturedRecipe; onClose: () => void }) {
@@ -129,36 +143,62 @@ function LandingPage() {
     })();
   }, [session]);
 
-  // Carrega receitas em destaque (das últimas salvas por qualquer usuário, ou gera via IA)
+  // Receitas em destaque, em cascata: as salvas do usuário -> IA -> catálogo local.
+  // O catálogo garante que a landing nunca renderize vazia, mesmo sem login,
+  // sem rede ou sem créditos de IA (visitante anônimo não enxerga user_recipes por RLS).
   useEffect(() => {
     void (async () => {
       setLoadingFeatured(true);
       try {
-        const { data } = await supabase.from("user_recipes")
-          .select("id, title, category, time_minutes, description, ingredients, instructions, difficulty, diet")
+        const { data, error } = await supabase
+          .from("user_recipes")
+          .select(
+            "id, title, category, time_minutes, description, ingredients, instructions, difficulty, diet",
+          )
           .order("created_at", { ascending: false })
           .limit(6);
+        if (error) console.error("destaques: user_recipes", error);
+
         if (data && data.length >= 3) {
-          setFeatured(data.map((r) => ({
-            id: r.id,
-            title: r.title,
-            category: r.category ?? "",
-            time_minutes: r.time_minutes ?? 0,
-            description: r.description ?? "",
-            ingredients: r.ingredients ?? [],
-            instructions: r.instructions ?? "",
-            difficulty: r.difficulty ?? "",
-            diet: r.diet ?? [],
-          })));
-        } else {
-          // Se não houver receitas salvas, gera via IA
-          const { data: aiData } = await supabase.functions.invoke("generate-recipes", {
-            body: { category: "todas", diet: [], ingredients: [], search: "", seed: "destaque-fixo" },
-          });
-          setFeatured((aiData?.recipes ?? []).slice(0, 6));
+          setFeatured(
+            data.map((r) => ({
+              id: r.id,
+              title: r.title,
+              category: r.category ?? "",
+              time_minutes: r.time_minutes ?? 0,
+              description: r.description ?? "",
+              ingredients: r.ingredients ?? [],
+              instructions: r.instructions ?? "",
+              difficulty: r.difficulty ?? "",
+              diet: r.diet ?? [],
+            })),
+          );
+          return;
         }
-      } catch { /* silencia erro na landing */ }
-      finally { setLoadingFeatured(false); }
+
+        const { data: aiData, error: aiError } = await supabase.functions.invoke(
+          "generate-recipes",
+          {
+            body: {
+              category: "todas",
+              diet: [],
+              ingredients: [],
+              search: "",
+              seed: "destaque-fixo",
+            },
+          },
+        );
+        // Falha comum aqui: 402 quando os créditos de IA acabam
+        if (aiError) console.error("destaques: generate-recipes", aiError);
+
+        const aiRecipes = (aiData?.recipes ?? []) as FeaturedRecipe[];
+        setFeatured(aiRecipes.length > 0 ? aiRecipes.slice(0, 6) : FALLBACK_FEATURED);
+      } catch (err) {
+        console.error("destaques", err);
+        setFeatured(FALLBACK_FEATURED);
+      } finally {
+        setLoadingFeatured(false);
+      }
     })();
   }, []);
 

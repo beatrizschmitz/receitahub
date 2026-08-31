@@ -116,7 +116,7 @@ function PlansPage() {
                       ) : (
                         <X size={16} className="mt-0.5 shrink-0 text-cream/25" />
                       )}
-                      <span className={f.included ? "text-cream/80" : "text-cream/35"}>
+                      <span className={f.included ? "text-cream/80" : "text-cream/55"}>
                         {f.label}
                       </span>
                     </li>
@@ -172,7 +172,7 @@ function PlansPage() {
           </Link>
         </section>
 
-        <p className="text-xs text-cream/30 mt-12">
+        <p className="text-xs text-cream/55 mt-12">
           Projeto acadêmico — os dados do cartão são enviados por HTTPS ao gateway de pagamento e
           nunca ficam salvos aqui; guardamos só o identificador da transação.
         </p>

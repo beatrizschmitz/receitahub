@@ -1,7 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { effectiveTier } from "@/lib/plans";
 
-const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
+// Gateway de IA compatível com a API OpenAI (/v1/chat/completions).
+// Trocar de provedor é só mudar estas variáveis de ambiente — nenhum código muda.
+// Padrão: Google AI Studio, que mantém os mesmos modelos Gemini usados antes.
+const GATEWAY =
+  process.env["AI_GATEWAY_URL"] ??
+  "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+const AI_MODEL = process.env["AI_MODEL"] ?? "gemini-2.5-flash";
 
 type GatewayMessage = {
   role: "system" | "user";
@@ -9,13 +16,13 @@ type GatewayMessage = {
 };
 
 async function callGateway(messages: GatewayMessage[], temperature = 0.8) {
-  const key = process.env["LOVABLE_API_KEY"];
+  const key = process.env["AI_API_KEY"];
   if (!key) throw new Error("IA não configurada.");
 
   const resp = await fetch(GATEWAY, {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "google/gemini-2.5-flash", temperature, messages }),
+    body: JSON.stringify({ model: AI_MODEL, temperature, messages }),
   });
 
   if (!resp.ok) {
@@ -44,7 +51,11 @@ type SupabaseLike = {
       eq: (
         col: string,
         value: string,
-      ) => { maybeSingle: () => Promise<{ data: { plan_tier?: string; status?: string } | null }> };
+      ) => {
+        maybeSingle: () => Promise<{
+          data: { plan_tier?: string; status?: string; current_period_end?: string | null } | null;
+        }>;
+      };
     };
   };
 };
@@ -56,10 +67,10 @@ async function requirePlan(
 ): Promise<void> {
   const { data } = await supabase
     .from("subscriptions")
-    .select("plan_tier, status")
+    .select("plan_tier, status, current_period_end")
     .eq("user_id", userId)
     .maybeSingle();
-  const tier = data?.status === "active" ? (data?.plan_tier ?? "free") : "free";
+  const tier = effectiveTier(data?.plan_tier, data?.status, data?.current_period_end);
   if (!allowed.includes(tier)) {
     throw new Error("Seu plano atual não inclui este recurso.");
   }
@@ -95,11 +106,10 @@ export const recognizePhoto = createServerFn({ method: "POST" })
     };
   })
   .handler(async ({ data, context }): Promise<RecognizedPhoto> => {
-    await requirePlan(
-      context.supabase as unknown as SupabaseLike,
-      context.userId,
-      ["basico", "premium"],
-    );
+    await requirePlan(context.supabase as unknown as SupabaseLike, context.userId, [
+      "basico",
+      "premium",
+    ]);
 
     const pantryList = data.pantry.join(", ");
     const result = (await callGateway([

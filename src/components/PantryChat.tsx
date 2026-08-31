@@ -1,18 +1,43 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { MessageCircle, X, Send, Loader2, Sparkles, BookmarkPlus, Check } from "lucide-react";
+import {
+  MessageCircle,
+  X,
+  Send,
+  Loader2,
+  Sparkles,
+  BookmarkPlus,
+  Check,
+  Camera,
+} from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/contexts/SubscriptionContext";
+import { usePlanGate } from "@/contexts/PlanGateContext";
+import { recognizePhoto, type RecognizedPhoto } from "@/lib/ai.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Link } from "@tanstack/react-router";
 
-type Msg = { role: "user" | "assistant"; content: string };
+type Recipe = RecognizedPhoto["recipe"];
+
+type Msg = {
+  role: "user" | "assistant";
+  content: string;
+  /** foto anexada pelo usuário (data URL), exibida como miniatura na conversa */
+  image?: string;
+  /** receita estruturada vinda do reconhecimento por foto */
+  recipe?: Recipe;
+  /** linha em photo_recognition_requests, para vincular a receita quando salva */
+  recognitionId?: string;
+};
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/pantry-chat`;
+const PHOTO_BUCKET = "pantry-photos";
+const MAX_IMAGE_SIDE = 1024;
 
 const normalizeText = (value: string) =>
   value
@@ -217,11 +242,89 @@ function extractDescription(content: string, title: string): string {
   return line ?? "Receita sugerida pelo Chef Despensa";
 }
 
+// Reduz a foto antes de mandar para a IA e para o Storage — fotos de celular
+// passam de 4 MB e o gateway recusa payloads muito grandes.
+async function compressImage(file: File): Promise<string> {
+  const original = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+  const img = new Image();
+  await new Promise((resolve, reject) => {
+    img.onload = resolve;
+    img.onerror = reject;
+    img.src = original;
+  });
+
+  const scale = Math.min(1, MAX_IMAGE_SIDE / Math.max(img.width, img.height));
+  if (scale === 1 && original.length < 1_500_000) return original;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(img.width * scale);
+  canvas.height = Math.round(img.height * scale);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return original;
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.8);
+}
+
+function dataUrlToBlob(dataUrl: string): Blob {
+  const [header, body] = dataUrl.split(",");
+  const mime = header.match(/:(.*?);/)?.[1] ?? "image/jpeg";
+  const binary = atob(body);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+}
+
+// Monta a resposta do chef a partir da receita estruturada devolvida pela IA
+function recipeToMarkdown(mainItem: string, recipe: Recipe): string {
+  const parts: string[] = [];
+  parts.push(mainItem ? `Identifiquei **${mainItem}** na foto! 📸` : "Olha o que dá pra fazer! 📸");
+  parts.push(`### ${recipe.title}`);
+  if (recipe.description) parts.push(recipe.description);
+
+  const meta: string[] = [];
+  if (recipe.time_minutes) meta.push(`⏱ ${recipe.time_minutes} min`);
+  if (recipe.difficulty) meta.push(`🎚 ${recipe.difficulty}`);
+  if (recipe.category) meta.push(`🍽 ${recipe.category}`);
+  if (meta.length > 0) parts.push(meta.join(" · "));
+
+  if (recipe.ingredients?.length) {
+    parts.push(["**Ingredientes**", ...recipe.ingredients.map((i) => `- ${i}`)].join("\n"));
+  }
+  if (recipe.instructions) {
+    parts.push(["**Modo de preparo**", recipe.instructions].join("\n"));
+  }
+
+  const nutrition: string[] = [];
+  if (recipe.calories_per_serving)
+    nutrition.push(`🔥 ${recipe.calories_per_serving} kcal por porção`);
+  if (recipe.diet?.length) nutrition.push(recipe.diet.join(", "));
+  if (nutrition.length > 0) {
+    parts.push(["**Informações nutricionais**", nutrition.join(" · ")].join("\n"));
+  }
+
+  if (recipe.cost_home_brl && recipe.cost_delivery_brl) {
+    parts.push(
+      `💰 R$ ${recipe.cost_home_brl} em casa vs R$ ${recipe.cost_delivery_brl} no delivery`,
+    );
+  }
+
+  return parts.join("\n\n");
+}
+
 export function PantryChat() {
   const { user } = useAuth();
   const { tier, canChat, chatLimit, chatRemaining, registerChatMessage } = useSubscription();
+  const { requireFeature } = usePlanGate();
+  const runRecognize = useServerFn(recognizePhoto);
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
+  const [attachment, setAttachment] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [savedMsgIndexes, setSavedMsgIndexes] = useState<Set<number>>(new Set());
   const [messages, setMessages] = useState<Msg[]>([
@@ -232,6 +335,7 @@ export function PantryChat() {
     },
   ]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -250,43 +354,164 @@ export function PantryChat() {
     return data ?? [];
   }
 
+  // Guarda a foto no Storage privado do usuário. Falha aqui não impede a receita:
+  // o reconhecimento continua registrado, apenas sem a imagem vinculada.
+  async function uploadPhoto(dataUrl: string): Promise<string | null> {
+    if (!user) return null;
+    try {
+      const blob = dataUrlToBlob(dataUrl);
+      const path = `${user.id}/${crypto.randomUUID()}.jpg`;
+      const { error } = await supabase.storage
+        .from(PHOTO_BUCKET)
+        .upload(path, blob, { contentType: blob.type });
+      if (error) {
+        console.error("upload foto", error);
+        return null;
+      }
+      return path;
+    } catch (e) {
+      console.error("upload foto", e);
+      return null;
+    }
+  }
+
+  async function pickPhoto() {
+    if (!requireFeature("foto")) return;
+    fileRef.current?.click();
+  }
+
+  async function handleFile(file: File) {
+    if (file.size > 8_000_000) {
+      toast.error("Imagem muito grande (máx 8 MB).");
+      return;
+    }
+    try {
+      setAttachment(await compressImage(file));
+    } catch (e) {
+      console.error(e);
+      toast.error("Não consegui ler essa imagem.");
+    }
+  }
+
   async function saveRecipe(msgIndex: number) {
     if (!user) return;
-    const content = messages[msgIndex]?.content;
-    if (!content) return;
+    const msg = messages[msgIndex];
+    if (!msg?.content) return;
 
-    const title = extractTitle(content);
-    const ingredients = extractIngredients(content);
-    const instructions = extractInstructions(content);
-    const description = extractDescription(content, title);
+    // Receita vinda da foto já chega estruturada; a do chat em texto é extraída do markdown
+    const structured = msg.recipe;
+    const content = msg.content;
+    const title = structured?.title ?? extractTitle(content);
+    const ingredients = structured ? (structured.ingredients ?? []) : extractIngredients(content);
 
-    const { error } = await supabase.from("user_recipes").insert({
-      user_id: user.id,
-      title,
-      description,
-      category: extractCategory(content),
-      time_minutes: extractTimeMinutes(content),
-      difficulty: extractDifficulty(content),
-      ingredients: ingredients.length > 0 ? ingredients : null,
-      instructions,
-      diet: extractDiet(content),
-      calories_per_serving: extractCalories(content),
-      cost_home_brl: extractCost(content, "home"),
-      cost_delivery_brl: extractCost(content, "delivery"),
-      is_favorite: false,
-    });
+    const { data: saved, error } = await supabase
+      .from("user_recipes")
+      .insert({
+        user_id: user.id,
+        title,
+        description: structured
+          ? (structured.description ?? null)
+          : extractDescription(content, title),
+        category: structured
+          ? (structured.category ?? "prato principal")
+          : extractCategory(content),
+        time_minutes: structured ? (structured.time_minutes ?? null) : extractTimeMinutes(content),
+        difficulty: structured ? (structured.difficulty ?? null) : extractDifficulty(content),
+        ingredients: ingredients.length > 0 ? ingredients : null,
+        instructions: structured ? (structured.instructions ?? null) : extractInstructions(content),
+        diet: structured ? (structured.diet ?? []) : extractDiet(content),
+        calories_per_serving: structured
+          ? (structured.calories_per_serving ?? null)
+          : extractCalories(content),
+        cost_home_brl: structured
+          ? (structured.cost_home_brl ?? null)
+          : extractCost(content, "home"),
+        cost_delivery_brl: structured
+          ? (structured.cost_delivery_brl ?? null)
+          : extractCost(content, "delivery"),
+        is_favorite: false,
+      })
+      .select("id")
+      .maybeSingle();
 
     if (error) {
       toast.error("Erro ao salvar a receita.");
-    } else {
-      setSavedMsgIndexes((prev) => new Set(prev).add(msgIndex));
-      toast.success(`"${title}" salva em Minhas Receitas! 🎉`);
+      return;
+    }
+
+    // Vincula a receita ao reconhecimento que a originou
+    if (saved?.id && msg.recognitionId) {
+      const { data: linked, error: linkError } = await supabase
+        .from("photo_recognition_requests")
+        .update({ generated_recipe_id: saved.id })
+        .eq("id", msg.recognitionId)
+        .select("id");
+      // 0 linhas aqui costuma significar policy de UPDATE ausente (ver migration)
+      if (linkError || linked?.length === 0)
+        console.error("vincular receita à foto", linkError ?? "nenhuma linha atualizada");
+    }
+
+    setSavedMsgIndexes((prev) => new Set(prev).add(msgIndex));
+    toast.success(`"${title}" salva em Minhas Receitas! 🎉`);
+  }
+
+  // Fluxo da foto: reconhece o prato, registra e devolve a receita no chat
+  async function sendPhoto(text: string) {
+    if (!user || !attachment) return;
+    if (!requireFeature("foto")) return;
+
+    const image = attachment;
+    setInput("");
+    setAttachment(null);
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", content: text || "O que consigo cozinhar com isso?", image },
+    ]);
+    setLoading(true);
+
+    try {
+      const pantry = await fetchPantry();
+      const recognized = await runRecognize({
+        data: { image, pantry: pantry.map((p) => p.name) },
+      });
+
+      const storedPath = await uploadPhoto(image);
+      const { data: request, error: requestError } = await supabase
+        .from("photo_recognition_requests")
+        .insert({
+          user_id: user.id,
+          image_url: storedPath,
+          recognized_item: recognized.main_item || null,
+        })
+        .select("id")
+        .maybeSingle();
+      if (requestError) console.error("registrar reconhecimento", requestError);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: recipeToMarkdown(recognized.main_item, recognized.recipe),
+          recipe: recognized.recipe,
+          recognitionId: request?.id,
+        },
+      ]);
+    } catch (e) {
+      console.error(e);
+      toast.error(e instanceof Error ? e.message : "Não consegui ler a foto.");
+    } finally {
+      setLoading(false);
     }
   }
 
   async function send() {
     const text = input.trim();
-    if (!text || loading) return;
+    if (loading) return;
+    if (attachment) {
+      await sendPhoto(text);
+      return;
+    }
+    if (!text) return;
     if (!canChat) {
       toast.error(
         "Você atingiu o limite de mensagens de hoje. Assine um plano para conversar sem limites.",
@@ -419,7 +644,7 @@ export function PantryChat() {
           <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-4">
             {messages.map((m, i) => {
               const isAssistant = m.role === "assistant";
-              const hasRecipe = isAssistant && detectRecipe(m.content);
+              const hasRecipe = isAssistant && (Boolean(m.recipe) || detectRecipe(m.content));
               const isSaved = savedMsgIndexes.has(i);
               const isStreaming = loading && i === messages.length - 1 && isAssistant;
 
@@ -438,7 +663,16 @@ export function PantryChat() {
                         <ReactMarkdown>{m.content || "..."}</ReactMarkdown>
                       </div>
                     ) : (
-                      <p className="whitespace-pre-wrap">{m.content}</p>
+                      <>
+                        {m.image && (
+                          <img
+                            src={m.image}
+                            alt="foto enviada"
+                            className="mb-2 max-h-40 w-full rounded-xl object-cover"
+                          />
+                        )}
+                        <p className="whitespace-pre-wrap">{m.content}</p>
+                      </>
                     )}
                   </div>
 
@@ -478,11 +712,11 @@ export function PantryChat() {
 
           {!canChat && (
             <div className="border-t border-border bg-blush/[0.07] px-4 py-3 text-xs text-foreground">
-              Você atingiu o limite de mensagens de hoje. 🍳{" "}
+              Você atingiu o limite de mensagens de hoje. Assine um plano para conversar sem
+              limites. 🍳{" "}
               <Link to="/planos" className="font-medium text-primary underline">
-                Assine um plano
-              </Link>{" "}
-              para conversar sem limites.
+                Ver planos
+              </Link>
             </div>
           )}
 
@@ -492,22 +726,77 @@ export function PantryChat() {
               e.preventDefault();
               send();
             }}
-            className="flex gap-2 border-t border-border bg-background p-3"
+            className="flex flex-col gap-2 border-t border-border bg-background p-3"
           >
-            <Input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={canChat ? "O que posso cozinhar hoje?" : "Limite diário atingido"}
-              disabled={loading || !canChat}
-              className="flex-1"
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void handleFile(file);
+                e.target.value = "";
+              }}
             />
-            <Button type="submit" size="icon" disabled={loading || !input.trim() || !canChat}>
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-            </Button>
+
+            {attachment && (
+              <div className="relative w-fit">
+                <img
+                  src={attachment}
+                  alt="pré-visualização da foto"
+                  className="h-20 w-20 rounded-xl border border-border object-cover"
+                />
+                <button
+                  type="button"
+                  aria-label="remover foto"
+                  onClick={() => setAttachment(null)}
+                  className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-charcoal text-cream shadow border border-border transition hover:text-blush"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                size="icon-pill"
+                variant="ghost"
+                aria-label="enviar uma foto do prato"
+                title="Enviar foto de um prato ou ingrediente"
+                onClick={() => void pickPhoto()}
+                disabled={loading}
+                className="shrink-0 text-muted-foreground hover:text-primary"
+              >
+                <Camera className="h-4 w-4" />
+              </Button>
+              <Input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder={
+                  attachment
+                    ? "Quer dizer algo sobre a foto? (opcional)"
+                    : canChat
+                      ? "O que posso cozinhar hoje?"
+                      : "Limite diário atingido"
+                }
+                disabled={loading || (!canChat && !attachment)}
+                className="flex-1 rounded-full"
+              />
+              <Button
+                type="submit"
+                size="icon-pill"
+                disabled={loading || (attachment ? false : !input.trim() || !canChat)}
+              >
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
           </form>
         </div>
       )}

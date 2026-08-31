@@ -7,6 +7,15 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// Gateway de IA compatível com a API OpenAI (/v1/chat/completions).
+// Trocar de provedor é só mudar estas variáveis de ambiente — nenhum código muda.
+// Padrão: Google AI Studio, que mantém os mesmos modelos Gemini usados antes.
+const AI_URL =
+  Deno.env.get("AI_GATEWAY_URL") ??
+  "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+const AI_MODEL = Deno.env.get("AI_MODEL") ?? "gemini-2.5-flash";
+
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -14,8 +23,8 @@ serve(async (req) => {
 
   try {
     const { messages, pantry } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY não configurada");
+    const AI_API_KEY = Deno.env.get("AI_API_KEY");
+    if (!AI_API_KEY) throw new Error("AI_API_KEY não configurada");
 
     // Validação server-side do limite diário do plano gratuito
     const FREE_CHAT_DAILY_LIMIT = 10;
@@ -35,13 +44,22 @@ serve(async (req) => {
           }).then((r) => (r.ok ? r.json() : []));
         const today = new Date().toISOString().slice(0, 10);
         const [subs, usage] = await Promise.all([
-          rest(`subscriptions?user_id=eq.${user.id}&select=plan_tier,status`),
+          rest(
+            `subscriptions?user_id=eq.${user.id}&select=plan_tier,status,current_period_end`,
+          ),
           rest(
             `chat_usage?user_id=eq.${user.id}&reference_date=eq.${today}&select=message_count`,
           ),
         ]);
         const sub = subs?.[0];
-        const tier = sub && sub.status === "active" ? sub.plan_tier : "free";
+        // Mesma regra de src/lib/plans.ts (effectiveTier): uma assinatura
+        // cancelada continua valendo até o fim do período já pago.
+        const withinPaidPeriod =
+          sub?.current_period_end && new Date(sub.current_period_end) > new Date();
+        const tier =
+          sub && (sub.status === "active" || (sub.status === "canceled" && withinPaidPeriod))
+            ? sub.plan_tier
+            : "free";
         const used = usage?.[0]?.message_count ?? 0;
         if (tier === "free" && used > FREE_CHAT_DAILY_LIMIT) {
           return new Response(
@@ -82,15 +100,15 @@ Regras:
   - "**Custo:** ~R$ 18 em casa vs ~R$ 45 no delivery" (estimativa em reais; delivery costuma ser 2-3x o caseiro).`;
 
     const response = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
+      AI_URL,
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          Authorization: `Bearer ${AI_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          model: AI_MODEL,
           stream: true,
           messages: [
             { role: "system", content: systemPrompt },

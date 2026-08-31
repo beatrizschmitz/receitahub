@@ -1,11 +1,17 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { FREE_CHAT_DAILY_LIMIT, planAtLeast, type PlanTier } from "@/lib/plans";
+import {
+  FREE_CHAT_DAILY_LIMIT,
+  effectiveTier,
+  planAtLeast,
+  type PlanTier,
+  type SubscriptionStatus,
+} from "@/lib/plans";
 
 type SubscriptionContextValue = {
   tier: PlanTier;
-  status: "active" | "canceled" | "expired";
+  status: SubscriptionStatus;
   currentPeriodEnd: string | null;
   loading: boolean;
   chatUsedToday: number;
@@ -17,18 +23,34 @@ type SubscriptionContextValue = {
   refresh: () => Promise<void>;
   registerChatMessage: () => Promise<void>;
   changePlan: (tier: PlanTier) => Promise<boolean>;
+  cancelSubscription: () => Promise<boolean>;
 };
 
 const SubscriptionContext = createContext<SubscriptionContextValue | undefined>(undefined);
 
+// A contagem diária é gravada com CURRENT_DATE do banco (UTC), então o cliente
+// usa a mesma referência para ler e para virar o dia.
 function today() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function msUntilNextReset() {
+  const now = new Date();
+  const nextMidnight = Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate() + 1,
+    0,
+    0,
+    1,
+  );
+  return nextMidnight - now.getTime();
 }
 
 export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [tier, setTier] = useState<PlanTier>("free");
-  const [status, setStatus] = useState<"active" | "canceled" | "expired">("active");
+  const [status, setStatus] = useState<SubscriptionStatus>("active");
   const [currentPeriodEnd, setCurrentPeriodEnd] = useState<string | null>(null);
   const [chatUsedToday, setChatUsedToday] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -58,8 +80,8 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     ]);
 
     if (sub) {
-      setTier(sub.status === "active" ? (sub.plan_tier as PlanTier) : "free");
-      setStatus(sub.status as "active" | "canceled" | "expired");
+      setTier(effectiveTier(sub.plan_tier, sub.status, sub.current_period_end));
+      setStatus(sub.status as SubscriptionStatus);
       setCurrentPeriodEnd(sub.current_period_end);
     } else {
       // usuário antigo sem registro: cria plano gratuito
@@ -72,6 +94,15 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void refresh();
+  }, [refresh]);
+
+  // Zera a contagem automaticamente na virada do dia, sem precisar recarregar a página
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setChatUsedToday(0);
+      void refresh();
+    }, msUntilNextReset());
+    return () => clearTimeout(timer);
   }, [refresh]);
 
   const registerChatMessage = useCallback(async () => {
@@ -107,6 +138,22 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     [user],
   );
 
+  // Cancelar preserva current_period_end: o acesso pago vale até lá
+  const cancelSubscription = useCallback(async () => {
+    if (!user) return false;
+    const { error } = await supabase
+      .from("subscriptions")
+      .update({ status: "canceled" })
+      .eq("user_id", user.id);
+    if (error) {
+      console.error("cancelSubscription", error);
+      return false;
+    }
+    setStatus("canceled");
+    setTier((current) => effectiveTier(current, "canceled", currentPeriodEnd));
+    return true;
+  }, [user, currentPeriodEnd]);
+
   const chatLimit = tier === "free" ? FREE_CHAT_DAILY_LIMIT : null;
   const chatRemaining = chatLimit === null ? null : Math.max(0, chatLimit - chatUsedToday);
 
@@ -126,6 +173,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
         refresh,
         registerChatMessage,
         changePlan,
+        cancelSubscription,
       }}
     >
       {children}

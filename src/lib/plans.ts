@@ -80,3 +80,40 @@ const RANK: Record<PlanTier, number> = { free: 0, basico: 1, premium: 2 };
 export function planAtLeast(tier: PlanTier, minimum: PlanTier) {
   return RANK[tier] >= RANK[minimum];
 }
+
+// Nome do plano com inicial maiúscula, para textos corridos ("plano Básico")
+export const PLAN_TITLE: Record<PlanTier, string> = {
+  free: "Gratuito",
+  basico: "Básico",
+  premium: "Premium",
+};
+
+// Funcionalidades exclusivas de planos pagos e o plano mínimo de cada uma.
+// Serve de fonte única para o gate reutilizável (usePlanGate).
+// "foto" não tem página própria: vive dentro do chat do Chef Despensa.
+export type GatedFeature = "foto" | "dieta";
+
+export const GATED_FEATURES: Record<GatedFeature, { minimum: PlanTier }> = {
+  foto: { minimum: "basico" },
+  dieta: { minimum: "premium" },
+};
+
+export type SubscriptionStatus = "active" | "canceled" | "expired";
+
+/**
+ * Plano que vale de fato para o usuário. Uma assinatura cancelada continua
+ * valendo até o fim do período já pago; depois disso cai para o gratuito.
+ * A mesma regra roda no cliente, nos server functions e no edge function do
+ * chat — se mudar aqui, espelhe em supabase/functions/pantry-chat/index.ts.
+ */
+export function effectiveTier(
+  planTier: PlanTier | string | null | undefined,
+  status: SubscriptionStatus | string | null | undefined,
+  currentPeriodEnd: string | null | undefined,
+  now: Date = new Date(),
+): PlanTier {
+  const tier = (planTier ?? "free") as PlanTier;
+  if (status === "active") return tier;
+  if (status === "canceled" && currentPeriodEnd && new Date(currentPeriodEnd) > now) return tier;
+  return "free";
+}

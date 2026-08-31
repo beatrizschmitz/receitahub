@@ -7,6 +7,15 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// Gateway de IA compatível com a API OpenAI (/v1/chat/completions).
+// Trocar de provedor é só mudar estas variáveis de ambiente — nenhum código muda.
+// Padrão: Google AI Studio, que mantém os mesmos modelos Gemini usados antes.
+const AI_URL =
+  Deno.env.get("AI_GATEWAY_URL") ??
+  "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+const AI_MODEL = Deno.env.get("AI_MODEL") ?? "gemini-2.5-flash";
+
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -21,8 +30,8 @@ serve(async (req) => {
       });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY não configurada");
+    const AI_API_KEY = Deno.env.get("AI_API_KEY");
+    if (!AI_API_KEY) throw new Error("AI_API_KEY não configurada");
 
     const pantryList: string[] = Array.isArray(pantry) ? pantry.slice(0, 50) : [];
 
@@ -34,15 +43,15 @@ ${pantryList.length ? `O usuário tem em casa: ${pantryList.join(", ")}.\nSe pos
 Para cada substituto, dê uma nota curta (até 12 palavras) explicando a proporção ou impacto no sabor.`;
 
     const response = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
+      AI_URL,
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          Authorization: `Bearer ${AI_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: AI_MODEL,
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },

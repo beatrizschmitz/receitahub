@@ -1,9 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Check, X } from "lucide-react";
+import { Camera, Check, Salad, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/contexts/SubscriptionContext";
-import { PLANS, PLAN_LABEL, type PlanTier } from "@/lib/plans";
+import { PLANS, PLAN_ICONS, PLAN_LABEL, type PlanTier } from "@/lib/plans";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/planos")({
@@ -51,7 +51,7 @@ function PlansPage() {
       toast.success(
         next === "free"
           ? "Você voltou para o plano gratuito."
-          : `Plano ${PLAN_LABEL[next]} ativado! 🎉`,
+          : `Plano ${PLAN_LABEL[next]} ativado!`,
       );
     } else {
       toast.error("Não consegui atualizar seu plano. Tente novamente.");
@@ -60,12 +60,10 @@ function PlansPage() {
 
   return (
     <div className="min-h-screen bg-charcoal text-cream">
-
       <main className="max-w-6xl mx-auto px-6 lg:px-10 py-16">
         <header className="max-w-2xl">
-          <p className="text-xs uppercase tracking-[0.25em] text-cream/40">assinatura</p>
           <h1 className="font-display italic text-4xl lg:text-5xl text-blush mt-3 leading-tight">
-            escolha como quer cozinhar
+            Escolha como quer cozinhar
           </h1>
           <p className="text-cream/60 mt-4 leading-relaxed">
             Todo mundo começa no plano gratuito. Suba de plano quando quiser conversar sem limite
@@ -73,10 +71,9 @@ function PlansPage() {
           </p>
           {session && !loading && (
             <p className="text-sm text-cream/50 mt-4">
-              Plano atual:{" "}
-              <span className="text-blush">{PLAN_LABEL[tier]}</span>
+              Plano atual: <span className="text-blush">{PLAN_LABEL[tier]}</span>
               {currentPeriodEnd &&
-                ` · renova em ${new Date(currentPeriodEnd).toLocaleDateString("pt-BR")}`}
+                ` — renova em ${new Date(currentPeriodEnd).toLocaleDateString("pt-BR")}`}
             </p>
           )}
         </header>
@@ -95,11 +92,14 @@ function PlansPage() {
               >
                 {plan.highlight && (
                   <span className="absolute -top-3 left-7 rounded-full bg-blush px-3 py-1 text-[11px] font-medium text-charcoal">
-                    mais escolhido
+                    Mais escolhido
                   </span>
                 )}
 
-                <div className="text-3xl">{plan.emoji}</div>
+                {(() => {
+                  const I = PLAN_ICONS[plan.icon];
+                  return <I className="h-7 w-7 text-blush" strokeWidth={1.25} />;
+                })()}
                 <h2 className="font-display italic text-2xl text-blush mt-3">{plan.name}</h2>
                 <p className="text-sm text-cream/50 mt-1">{plan.tagline}</p>
 
@@ -152,10 +152,8 @@ function PlansPage() {
             to="/foto"
             className="rounded-2xl border border-border p-6 hover:border-blush/50 transition"
           >
-            <p className="text-2xl">📸</p>
-            <h3 className="font-display italic text-xl text-blush mt-2">
-              reconhecimento por foto
-            </h3>
+            <Camera className="h-6 w-6 text-blush" strokeWidth={1.5} />
+            <h3 className="font-display italic text-xl text-blush mt-2">Reconhecimento por foto</h3>
             <p className="text-sm text-cream/55 mt-1">
               Fotografe um ingrediente e receba uma receita na hora. Planos básico e premium.
             </p>
@@ -164,8 +162,8 @@ function PlansPage() {
             to="/dieta"
             className="rounded-2xl border border-border p-6 hover:border-blush/50 transition"
           >
-            <p className="text-2xl">🥗</p>
-            <h3 className="font-display italic text-xl text-blush mt-2">planos de dieta</h3>
+            <Salad className="h-6 w-6 text-blush" strokeWidth={1.5} />
+            <h3 className="font-display italic text-xl text-blush mt-2">Planos de dieta</h3>
             <p className="text-sm text-cream/55 mt-1">
               Cardápio de 7 dias com calorias, feito para o seu objetivo. Exclusivo premium.
             </p>

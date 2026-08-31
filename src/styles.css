@@ -4,6 +4,11 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Permite `light:` nas classes utilitárias, para os poucos casos em que a troca
+   de tema não pode sair só da inversão das variáveis: gradientes com matiz
+   própria e caixas de alerta, que precisam de tom escolhido a dedo em cada tema. */
+@custom-variant light (&:is([data-theme="light"] *));
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -72,6 +77,54 @@
   --input: oklch(1 0 0 / 10%);
   --ring: oklch(0.84 0.05 15);
 }
+
+/* ── Tema claro ──────────────────────────────────────────────────────────────
+   Todas as cores da aplicação passam por estas variáveis, então redefini-las
+   aqui vira o tema inteiro sem tocar em nenhuma das ~855 classes utilitárias
+   espalhadas pelos componentes.
+
+   O truque é que o código sempre pareia cream (texto) com charcoal (fundo).
+   Invertendo a luminosidade dos dois, pares como `bg-blush text-charcoal` ou
+   `text-cream/60` continuam com o contraste certo, ao contrário do que os
+   nomes sugerem — "charcoal" aqui passa a ser quase branco.
+
+   O data-theme é escrito por um script inline no <head> (RootShell), antes da
+   primeira pintura, para não haver flash do tema errado. */
+[data-theme="light"] {
+  /* Brand — o rosa clareado do escuro não teria contraste sobre fundo claro,
+     então vira um terracota da mesma família de matiz. */
+  --blush: oklch(0.55 0.13 25);
+  --blush-soft: oklch(0.63 0.10 25);
+  --blush-deep: oklch(0.45 0.14 25);
+  --charcoal: oklch(0.98 0.008 60);
+  --charcoal-light: oklch(0.95 0.012 60);
+  --cream: oklch(0.28 0.01 60);
+
+  /* Light UI */
+  --background: oklch(0.98 0.008 60);
+  --foreground: oklch(0.28 0.01 60);
+  --card: oklch(0.95 0.012 60);
+  --card-foreground: oklch(0.28 0.01 60);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.28 0.01 60);
+  --primary: oklch(0.55 0.13 25);
+  --primary-foreground: oklch(0.99 0.005 60);
+  --secondary: oklch(0.92 0.012 60);
+  --secondary-foreground: oklch(0.28 0.01 60);
+  --muted: oklch(0.95 0.012 60);
+  --muted-foreground: oklch(0.50 0.01 60);
+  --accent: oklch(0.55 0.13 25);
+  --accent-foreground: oklch(0.99 0.005 60);
+  --destructive: oklch(0.52 0.20 27);
+  --destructive-foreground: oklch(0.99 0.005 60);
+  --border: oklch(0 0 0 / 12%);
+  --input: oklch(0 0 0 / 12%);
+  --ring: oklch(0.55 0.13 25);
+
+  color-scheme: light;
+}
+
+:root { color-scheme: dark; }
 
 @layer base {
   * { border-color: var(--color-border); }

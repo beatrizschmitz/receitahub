@@ -219,7 +219,9 @@ function extractCalories(content: string): number | null {
 
 function extractCost(content: string, kind: "home" | "delivery"): number | null {
   // Padrão preferido: "R$ 18 em casa vs R$ 45 no delivery"
-  const dual = content.match(/r\$\s*(\d{1,4}(?:[.,]\d{1,2})?)\s*em\s*casa[^\d]*r\$\s*(\d{1,4}(?:[.,]\d{1,2})?)/i);
+  const dual = content.match(
+    /r\$\s*(\d{1,4}(?:[.,]\d{1,2})?)\s*em\s*casa[^\d]*r\$\s*(\d{1,4}(?:[.,]\d{1,2})?)/i,
+  );
   if (dual) {
     const n = parseFloat((kind === "home" ? dual[1] : dual[2]).replace(",", "."));
     if (!isNaN(n) && n > 0 && n < 1000) return n;
@@ -283,15 +285,15 @@ function dataUrlToBlob(dataUrl: string): Blob {
 // Monta a resposta do chef a partir da receita estruturada devolvida pela IA
 function recipeToMarkdown(mainItem: string, recipe: Recipe): string {
   const parts: string[] = [];
-  parts.push(mainItem ? `Identifiquei **${mainItem}** na foto! 📸` : "Olha o que dá pra fazer! 📸");
+  parts.push(mainItem ? `Identifiquei **${mainItem}** na foto!` : "Olha o que dá pra fazer!");
   parts.push(`### ${recipe.title}`);
   if (recipe.description) parts.push(recipe.description);
 
   const meta: string[] = [];
   if (recipe.time_minutes) meta.push(`⏱ ${recipe.time_minutes} min`);
-  if (recipe.difficulty) meta.push(`🎚 ${recipe.difficulty}`);
-  if (recipe.category) meta.push(`🍽 ${recipe.category}`);
-  if (meta.length > 0) parts.push(meta.join(" · "));
+  if (recipe.difficulty) meta.push(`${recipe.difficulty}`);
+  if (recipe.category) meta.push(`${recipe.category}`);
+  if (meta.length > 0) parts.push(meta.join(" — "));
 
   if (recipe.ingredients?.length) {
     parts.push(["**Ingredientes**", ...recipe.ingredients.map((i) => `- ${i}`)].join("\n"));
@@ -301,17 +303,14 @@ function recipeToMarkdown(mainItem: string, recipe: Recipe): string {
   }
 
   const nutrition: string[] = [];
-  if (recipe.calories_per_serving)
-    nutrition.push(`🔥 ${recipe.calories_per_serving} kcal por porção`);
+  if (recipe.calories_per_serving) nutrition.push(`${recipe.calories_per_serving} kcal por porção`);
   if (recipe.diet?.length) nutrition.push(recipe.diet.join(", "));
   if (nutrition.length > 0) {
-    parts.push(["**Informações nutricionais**", nutrition.join(" · ")].join("\n"));
+    parts.push(["**Informações nutricionais**", nutrition.join(" — ")].join("\n"));
   }
 
   if (recipe.cost_home_brl && recipe.cost_delivery_brl) {
-    parts.push(
-      `💰 R$ ${recipe.cost_home_brl} em casa vs R$ ${recipe.cost_delivery_brl} no delivery`,
-    );
+    parts.push(`R$ ${recipe.cost_home_brl} em casa vs R$ ${recipe.cost_delivery_brl} no delivery`);
   }
 
   return parts.join("\n\n");
@@ -331,7 +330,7 @@ export function PantryChat() {
     {
       role: "assistant",
       content:
-        'Oi! 👋 Sou seu chef virtual. Posso ver sua despensa e sugerir o que cozinhar. Me pergunta algo como **"o que posso fazer no almoço?"** 🍳',
+        'Oi! Sou seu chef virtual. Posso ver sua despensa e sugerir o que cozinhar. Me pergunta algo como **"o que posso fazer no almoço?"**',
     },
   ]);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -452,7 +451,7 @@ export function PantryChat() {
     }
 
     setSavedMsgIndexes((prev) => new Set(prev).add(msgIndex));
-    toast.success(`"${title}" salva em Minhas Receitas! 🎉`);
+    toast.success(`"${title}" salva em Minhas Receitas.`);
   }
 
   // Fluxo da foto: reconhece o prato, registra e devolve a receita no chat
@@ -634,7 +633,7 @@ export function PantryChat() {
               <p className="text-sm font-semibold">Chef Despensa</p>
               <p className="text-[11px] opacity-80">
                 {chatLimit === null
-                  ? "Mensagens ilimitadas · plano " + tier
+                  ? "Mensagens ilimitadas — plano " + tier
                   : `${chatRemaining} de ${chatLimit} mensagens restantes hoje`}
               </p>
             </div>
@@ -705,7 +704,7 @@ export function PantryChat() {
 
             {loading && messages[messages.length - 1]?.role === "user" && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Loader2 className="h-3 w-3 animate-spin" /> pensando...
+                <Loader2 className="h-3 w-3 animate-spin" /> Pensando...
               </div>
             )}
           </div>
@@ -713,7 +712,7 @@ export function PantryChat() {
           {!canChat && (
             <div className="border-t border-border bg-blush/[0.07] px-4 py-3 text-xs text-foreground">
               Você atingiu o limite de mensagens de hoje. Assine um plano para conversar sem
-              limites. 🍳{" "}
+              limites.{" "}
               <Link to="/planos" className="font-medium text-primary underline">
                 Ver planos
               </Link>
@@ -750,7 +749,7 @@ export function PantryChat() {
                 />
                 <button
                   type="button"
-                  aria-label="remover foto"
+                  aria-label="Remover foto"
                   onClick={() => setAttachment(null)}
                   className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-charcoal text-cream shadow border border-border transition hover:text-blush"
                 >
@@ -764,7 +763,7 @@ export function PantryChat() {
                 type="button"
                 size="icon-pill"
                 variant="ghost"
-                aria-label="enviar uma foto do prato"
+                aria-label="Enviar uma foto do prato"
                 title="Enviar foto de um prato ou ingrediente"
                 onClick={() => void pickPhoto()}
                 disabled={loading}

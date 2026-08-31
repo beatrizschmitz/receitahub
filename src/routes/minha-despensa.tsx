@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Package } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -113,7 +114,7 @@ function PantryPage() {
   if (authLoading || !session) {
     return (
       <div className="min-h-screen bg-charcoal text-cream flex items-center justify-center">
-        <div className="text-cream/50">carregando...</div>
+        <div className="text-cream/50">Carregando...</div>
       </div>
     );
   }
@@ -205,9 +206,8 @@ function PantryPage() {
       <section className="max-w-7xl mx-auto px-6 lg:px-10 pt-20 pb-12">
         <div className="flex items-end justify-between flex-wrap gap-6">
           <div>
-            <div className="text-xs uppercase tracking-widest text-blush mb-3">seu estoque</div>
             <h1 className="text-5xl md:text-6xl text-cream leading-tight">
-              minha <em className="text-blush font-display italic">despensa</em>
+              Minha <em className="text-blush font-display italic">despensa</em>
             </h1>
             <p className="mt-4 text-cream/70 max-w-xl">
               Tudo que você tem em casa, organizado. A IA usa esta lista para sugerir receitas
@@ -231,11 +231,11 @@ function PantryPage() {
               statusFilter === "todos" ? "border-blush" : "border-border"
             }`}
           >
-            <div className="text-xs uppercase tracking-wider text-cream/50">Itens totais</div>
+            <div className="text-sm text-cream/50">Itens totais</div>
             <div className="font-display text-3xl text-cream mt-2">{items.length}</div>
           </button>
           <div className="bg-charcoal-light rounded-2xl p-5 border border-border">
-            <div className="text-xs uppercase tracking-wider text-cream/50">Categorias</div>
+            <div className="text-sm text-cream/50">Categorias</div>
             <div className="font-display text-3xl text-cream mt-2">
               {Math.max(0, categories.length - 1)}
             </div>
@@ -246,7 +246,7 @@ function PantryPage() {
               statusFilter === "vencendo" ? "border-blush" : "border-blush/30"
             }`}
           >
-            <div className="text-xs uppercase tracking-wider text-blush">Vencendo em breve</div>
+            <div className="text-sm text-blush">Vencendo em breve</div>
             <div className="font-display text-3xl text-blush mt-2">{expiring}</div>
             <div className="text-[10px] uppercase tracking-wider text-blush/70 mt-1">
               próximos 5 dias
@@ -254,12 +254,16 @@ function PantryPage() {
           </button>
           <button
             onClick={() => setStatusFilter("vencidos")}
-            className={`text-left bg-red-500/10 rounded-2xl p-5 border transition hover:bg-red-500/15 ${
-              statusFilter === "vencidos" ? "border-red-400" : "border-red-500/30"
+            className={`text-left bg-red-500/10 light:bg-red-50 rounded-2xl p-5 border transition hover:bg-red-500/15 light:hover:bg-red-100 ${
+              statusFilter === "vencidos"
+                ? "border-red-400 light:border-red-600"
+                : "border-red-500/30 light:border-red-600/40"
             }`}
           >
-            <div className="text-xs uppercase tracking-wider text-red-400">Vencidos</div>
-            <div className="font-display text-3xl text-red-400 mt-2">{expiredCount}</div>
+            <div className="text-sm text-red-400 light:text-red-800">Vencidos</div>
+            <div className="font-display text-3xl text-red-400 light:text-red-800 mt-2">
+              {expiredCount}
+            </div>
             <div className="text-[10px] uppercase tracking-wider text-red-400/70 mt-1">
               clique para filtrar
             </div>
@@ -270,10 +274,10 @@ function PantryPage() {
         <div className="mt-6 flex flex-wrap gap-2">
           {(
             [
-              { key: "todos", label: "todos os status", count: items.length },
-              { key: "vencidos", label: "🔴 vencidos", count: expiredCount },
-              { key: "vencendo", label: "⚠️ vencendo em breve", count: expiring },
-              { key: "ok", label: "✅ ok", count: items.length - expiredCount - expiring },
+              { key: "todos", label: "Todos os status", count: items.length },
+              { key: "vencidos", label: "Vencidos", count: expiredCount },
+              { key: "vencendo", label: "Vencendo em breve", count: expiring },
+              { key: "ok", label: "Ok", count: items.length - expiredCount - expiring },
             ] as const
           ).map((s) => (
             <button
@@ -336,9 +340,7 @@ function PantryPage() {
               className="bg-charcoal border border-border rounded-xl px-4 py-3 text-cream placeholder:text-cream/40 focus:outline-none focus:border-blush/50"
             />
             <label className="flex flex-col gap-1">
-              <span className="text-[11px] uppercase tracking-wider text-cream/50 px-1">
-                Comprado em
-              </span>
+              <span className="text-[11px] text-cream/50 px-1">Comprado em</span>
               <input
                 type="date"
                 value={newItem.purchased_at}
@@ -348,9 +350,7 @@ function PantryPage() {
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-[11px] uppercase tracking-wider text-cream/50 px-1">
-                Validade
-              </span>
+              <span className="text-[11px] text-cream/50 px-1">Validade</span>
               <input
                 type="date"
                 value={newItem.expires_at}
@@ -375,7 +375,7 @@ function PantryPage() {
               <button
                 key={c}
                 onClick={() => setFilter(c)}
-                className={`px-4 py-2 rounded-full text-sm capitalize transition border ${
+                className={`px-4 py-2 rounded-full text-sm first-letter:uppercase transition border ${
                   filter === c
                     ? "bg-blush text-charcoal border-blush"
                     : "border-border text-cream/70 hover:text-cream hover:border-blush/40"
@@ -391,10 +391,10 @@ function PantryPage() {
       {/* Items table */}
       <section className="max-w-7xl mx-auto px-6 lg:px-10 pb-24">
         {loading ? (
-          <div className="text-center py-16 text-cream/50">carregando despensa...</div>
+          <div className="text-center py-16 text-cream/50">Carregando despensa...</div>
         ) : items.length === 0 ? (
           <div className="text-center py-24 border border-dashed border-border rounded-3xl">
-            <div className="text-5xl mb-4">🥫</div>
+            <Package className="mx-auto mb-4 h-9 w-9 text-cream/25" strokeWidth={1} />
             <h3 className="font-display text-2xl text-cream mb-2">Sua despensa está vazia</h3>
             <p className="text-cream/60">
               Adicione seu primeiro ingrediente clicando em "Adicionar item".
@@ -402,7 +402,7 @@ function PantryPage() {
           </div>
         ) : (
           <div className="bg-charcoal-light border border-border rounded-2xl overflow-hidden">
-            <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-4 text-xs uppercase tracking-wider text-cream/50 border-b border-border">
+            <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-4 text-sm text-cream/50 border-b border-border">
               <div className="col-span-3">Item</div>
               <div className="col-span-2">Categoria</div>
               <div className="col-span-2">Quantidade</div>
@@ -447,9 +447,7 @@ function PantryPage() {
                     <span className="text-cream">{item.name}</span>
                   </div>
                   <div className="md:col-span-2 text-sm text-cream/60">{item.category}</div>
-                  <div className="md:col-span-2 text-sm text-cream/80">
-                    {item.quantity || "—"}
-                  </div>
+                  <div className="md:col-span-2 text-sm text-cream/80">{item.quantity || "—"}</div>
                   <div className="md:col-span-2 text-sm text-cream/60">
                     {formatDateBR(item.purchased_at)}
                   </div>
@@ -482,7 +480,7 @@ function PantryPage() {
                       className="md:opacity-0 md:group-hover:opacity-100 text-cream/50 hover:text-red-400 transition text-xs"
                       aria-label="Remover"
                     >
-                      remover
+                      Remover
                     </button>
                   </div>
                 </div>

@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { ShoppingCart } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -87,9 +88,7 @@ function ShoppingListPage() {
         .select("name, is_purchased")
         .eq("is_purchased", false);
 
-      const existingNames = new Set(
-        (existing ?? []).map((r) => r.name.toLowerCase()),
-      );
+      const existingNames = new Set((existing ?? []).map((r) => r.name.toLowerCase()));
 
       const toInsert: Array<{
         user_id: string;
@@ -135,13 +134,8 @@ function ShoppingListPage() {
 
   async function togglePurchased(item: ShopItem) {
     const next = !item.is_purchased;
-    setItems((prev) =>
-      prev.map((i) => (i.id === item.id ? { ...i, is_purchased: next } : i)),
-    );
-    await supabase
-      .from("shopping_list_items")
-      .update({ is_purchased: next })
-      .eq("id", item.id);
+    setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, is_purchased: next } : i)));
+    await supabase.from("shopping_list_items").update({ is_purchased: next }).eq("id", item.id);
   }
 
   async function removeItem(id: string) {
@@ -173,7 +167,7 @@ function ShoppingListPage() {
   if (authLoading || !session) {
     return (
       <div className="min-h-screen bg-charcoal text-cream flex items-center justify-center">
-        <div className="text-cream/50">carregando...</div>
+        <div className="text-cream/50">Carregando...</div>
       </div>
     );
   }
@@ -191,15 +185,13 @@ function ShoppingListPage() {
       <section className="max-w-5xl mx-auto px-6 lg:px-10 pt-20 pb-12">
         <div className="flex items-end justify-between flex-wrap gap-6">
           <div>
-            <div className="text-xs uppercase tracking-widest text-blush mb-3">
-              gerada automaticamente
-            </div>
+            <div className="text-sm text-blush mb-3">gerada automaticamente</div>
             <h1 className="text-5xl md:text-6xl text-cream leading-tight">
-              lista de <em className="text-blush font-display italic">compras</em>
+              Lista de <em className="text-blush font-display italic">compras</em>
             </h1>
             <p className="mt-4 text-cream/70 max-w-xl">
-              Itens vencidos ou prestes a vencer da sua despensa aparecem aqui automaticamente.
-              Você também pode adicionar manualmente.
+              Itens vencidos ou prestes a vencer da sua despensa aparecem aqui automaticamente. Você
+              também pode adicionar manualmente.
             </p>
           </div>
           <div className="flex gap-3">
@@ -207,14 +199,14 @@ function ShoppingListPage() {
               onClick={copyList}
               className="px-5 py-2.5 rounded-full border border-blush/40 text-blush hover:bg-blush hover:text-charcoal transition text-sm"
             >
-              copiar lista
+              Copiar lista
             </button>
             {purchased.length > 0 && (
               <button
                 onClick={clearPurchased}
                 className="px-5 py-2.5 rounded-full border border-border text-cream/70 hover:text-cream hover:border-blush/40 transition text-sm"
               >
-                limpar comprados ({purchased.length})
+                Limpar comprados ({purchased.length})
               </button>
             )}
           </div>
@@ -222,34 +214,34 @@ function ShoppingListPage() {
 
         <div className="mt-10 grid grid-cols-3 gap-4">
           <div className="bg-charcoal-light rounded-2xl p-5 border border-border">
-            <div className="text-xs uppercase tracking-wider text-cream/50">a comprar</div>
+            <div className="text-sm text-cream/50">a comprar</div>
             <div className="font-display text-3xl text-cream mt-2">{pending.length}</div>
           </div>
           <div className="bg-blush/10 rounded-2xl p-5 border border-blush/30">
-            <div className="text-xs uppercase tracking-wider text-blush">automáticos</div>
+            <div className="text-sm text-blush">automáticos</div>
             <div className="font-display text-3xl text-blush mt-2">
               {pending.filter((i) => i.source !== "manual").length}
             </div>
           </div>
-          <div className="bg-emerald-500/10 rounded-2xl p-5 border border-emerald-500/30">
-            <div className="text-xs uppercase tracking-wider text-emerald-300">comprados</div>
-            <div className="font-display text-3xl text-emerald-300 mt-2">{purchased.length}</div>
+          <div className="bg-emerald-500/10 light:bg-emerald-50 rounded-2xl p-5 border border-emerald-500/30 light:border-emerald-600/40">
+            <div className="text-sm text-emerald-300 light:text-emerald-800">comprados</div>
+            <div className="font-display text-3xl text-emerald-300 light:text-emerald-800 mt-2">
+              {purchased.length}
+            </div>
           </div>
         </div>
       </section>
 
       <section className="max-w-5xl mx-auto px-6 lg:px-10 pb-24">
         {loading ? (
-          <div className="text-center py-16 text-cream/50">carregando lista...</div>
+          <div className="text-center py-16 text-cream/50">Carregando lista...</div>
         ) : items.length === 0 ? (
           <div className="text-center py-24 border border-dashed border-border rounded-3xl">
-            <div className="text-5xl mb-4">🛒</div>
-            <h3 className="font-display text-2xl text-cream mb-2">
-              Sua lista está vazia
-            </h3>
+            <ShoppingCart className="mx-auto mb-4 h-9 w-9 text-cream/25" strokeWidth={1} />
+            <h3 className="font-display text-2xl text-cream mb-2">Sua lista está vazia</h3>
             <p className="text-cream/60">
-              Quando algum item da sua despensa estiver vencido ou perto da validade,
-              ele aparece aqui automaticamente.
+              Quando algum item da sua despensa estiver vencido ou perto da validade, ele aparece
+              aqui automaticamente.
             </p>
           </div>
         ) : (
@@ -277,7 +269,13 @@ function ShoppingListPage() {
                     }
                   >
                     {item.is_purchased && (
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="h-3 w-3">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="3"
+                        className="h-3 w-3"
+                      >
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                       </svg>
                     )}
@@ -300,7 +298,7 @@ function ShoppingListPage() {
                     </div>
                     <div className="text-xs text-cream/50 mt-0.5">
                       {item.category || "—"}
-                      {item.quantity && ` · ${item.quantity}`}
+                      {item.quantity && ` — ${item.quantity}`}
                     </div>
                   </div>
 
@@ -309,7 +307,7 @@ function ShoppingListPage() {
                     className="text-cream/40 hover:text-red-400 transition text-xs"
                     aria-label="Remover"
                   >
-                    remover
+                    Remover
                   </button>
                 </div>
               );

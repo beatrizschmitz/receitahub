@@ -62,7 +62,7 @@ export function IngredientSubstitute({
           type="button"
           className="text-[10px] uppercase tracking-wider text-blush/80 hover:text-blush border border-blush/30 hover:border-blush rounded-full px-2 py-0.5 transition"
         >
-          substituir
+          Substituir
         </button>
       </PopoverTrigger>
       <PopoverContent
@@ -71,19 +71,19 @@ export function IngredientSubstitute({
       >
         <div className="flex items-center gap-2 mb-3">
           <Sparkles className="h-3.5 w-3.5 text-blush" />
-          <p className="text-xs uppercase tracking-wider text-blush">
+          <p className="text-sm text-blush">
             substitutos para {ingredient}
           </p>
         </div>
 
         {loading && (
           <div className="flex items-center gap-2 text-sm text-cream/60 py-3">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" /> pensando...
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Pensando...
           </div>
         )}
 
         {error && !loading && (
-          <div className="text-sm text-red-400">{error}</div>
+          <div className="text-sm text-red-400 light:text-red-700">{error}</div>
         )}
 
         {!loading && !error && subs.length > 0 && (

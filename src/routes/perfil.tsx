@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { BookOpen, Package, Sparkles } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -87,7 +88,7 @@ function ProfilePage() {
   if (authLoading || !session) {
     return (
       <div className="min-h-screen bg-charcoal text-cream flex items-center justify-center">
-        <div className="text-cream/50">carregando...</div>
+        <div className="text-cream/50">Carregando...</div>
       </div>
     );
   }
@@ -110,16 +111,14 @@ function ProfilePage() {
       return;
     }
     setSaving(true);
-    const { error } = await supabase
-      .from("profiles")
-      .upsert(
-        {
-          id: session.user.id,
-          display_name: trimmed,
-          avatar_url: avatarUrl.trim() || null,
-        },
-        { onConflict: "id" },
-      );
+    const { error } = await supabase.from("profiles").upsert(
+      {
+        id: session.user.id,
+        display_name: trimmed,
+        avatar_url: avatarUrl.trim() || null,
+      },
+      { onConflict: "id" },
+    );
     setSaving(false);
     if (error) {
       toast.error("Erro ao salvar perfil");
@@ -141,7 +140,7 @@ function ProfilePage() {
       supabase.from("user_recipes").delete().eq("user_id", session.user.id),
     ]);
     if (e1 || e2) {
-      toast.error("Erro ao apagar dados");
+      toast.error("Erro ao Apagar dados");
     } else {
       toast.success("Todos os seus dados foram apagados");
       setPantryCount(0);
@@ -158,9 +157,8 @@ function ProfilePage() {
       />
 
       <section className="max-w-4xl mx-auto px-6 lg:px-10 pt-20 pb-12">
-        <div className="text-xs uppercase tracking-widest text-blush mb-3">sua conta</div>
         <h1 className="text-5xl md:text-6xl text-cream leading-tight">
-          meu <em className="text-blush font-display italic">perfil</em>
+          Meu <em className="text-blush font-display italic">perfil</em>
         </h1>
         <p className="mt-4 text-cream/70 max-w-xl">
           Personalize sua conta, gerencie suas configurações e veja um resumo da sua jornada
@@ -170,21 +168,21 @@ function ProfilePage() {
 
       <section className="max-w-4xl mx-auto px-6 lg:px-10 pb-24 space-y-8">
         {loading ? (
-          <div className="text-center py-16 text-cream/50">carregando perfil...</div>
+          <div className="text-center py-16 text-cream/50">Carregando perfil...</div>
         ) : (
           <>
             {/* Stats */}
             <div className="grid grid-cols-3 gap-4">
               <div className="bg-charcoal-light rounded-2xl p-5 border border-border">
-                <div className="text-xs uppercase tracking-wider text-cream/50">Despensa</div>
+                <div className="text-sm text-cream/50">Despensa</div>
                 <div className="font-display text-3xl text-cream mt-2">{pantryCount}</div>
               </div>
               <div className="bg-charcoal-light rounded-2xl p-5 border border-border">
-                <div className="text-xs uppercase tracking-wider text-cream/50">Receitas</div>
+                <div className="text-sm text-cream/50">Receitas</div>
                 <div className="font-display text-3xl text-cream mt-2">{recipesCount}</div>
               </div>
               <div className="bg-blush/10 rounded-2xl p-5 border border-blush/30">
-                <div className="text-xs uppercase tracking-wider text-blush">Favoritas</div>
+                <div className="text-sm text-blush">Favoritas</div>
                 <div className="font-display text-3xl text-blush mt-2">{favoritesCount}</div>
               </div>
             </div>
@@ -219,9 +217,7 @@ function ProfilePage() {
 
               <div className="space-y-5">
                 <label className="block">
-                  <span className="text-xs uppercase tracking-wider text-cream/50 mb-2 block">
-                    Nome de exibição
-                  </span>
+                  <span className="text-sm text-cream/50 mb-2 block">Nome de exibição</span>
                   <input
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
@@ -232,9 +228,7 @@ function ProfilePage() {
                 </label>
 
                 <label className="block">
-                  <span className="text-xs uppercase tracking-wider text-cream/50 mb-2 block">
-                    URL do avatar (opcional)
-                  </span>
+                  <span className="text-sm text-cream/50 mb-2 block">URL do avatar (opcional)</span>
                   <input
                     type="url"
                     value={avatarUrl}
@@ -246,9 +240,7 @@ function ProfilePage() {
                 </label>
 
                 <label className="block">
-                  <span className="text-xs uppercase tracking-wider text-cream/50 mb-2 block">
-                    Email
-                  </span>
+                  <span className="text-sm text-cream/50 mb-2 block">Email</span>
                   <input
                     value={session.user.email ?? ""}
                     disabled
@@ -277,7 +269,7 @@ function ProfilePage() {
                   to="/minha-despensa"
                   className="border border-border rounded-2xl p-4 hover:border-blush/40 hover:bg-charcoal/50 transition"
                 >
-                  <div className="text-xl mb-1">🥫</div>
+                  <Package className="mb-1.5 h-5 w-5 text-blush" strokeWidth={1.5} />
                   <div className="text-cream text-sm">Minha despensa</div>
                   <div className="text-cream/50 text-xs">Gerenciar ingredientes</div>
                 </Link>
@@ -285,7 +277,7 @@ function ProfilePage() {
                   to="/minhas-receitas"
                   className="border border-border rounded-2xl p-4 hover:border-blush/40 hover:bg-charcoal/50 transition"
                 >
-                  <div className="text-xl mb-1">📖</div>
+                  <BookOpen className="mb-1.5 h-5 w-5 text-blush" strokeWidth={1.5} />
                   <div className="text-cream text-sm">Minhas receitas</div>
                   <div className="text-cream/50 text-xs">Salvas e favoritas</div>
                 </Link>
@@ -293,7 +285,7 @@ function ProfilePage() {
                   to="/receitas"
                   className="border border-border rounded-2xl p-4 hover:border-blush/40 hover:bg-charcoal/50 transition"
                 >
-                  <div className="text-xl mb-1">✨</div>
+                  <Sparkles className="mb-1.5 h-5 w-5 text-blush" strokeWidth={1.5} />
                   <div className="text-cream text-sm">Descobrir</div>
                   <div className="text-cream/50 text-xs">Novas receitas com IA</div>
                 </Link>
@@ -316,7 +308,7 @@ function ProfilePage() {
                     onClick={handleLogout}
                     className="px-4 py-2 rounded-full border border-border text-cream/80 hover:text-cream hover:border-cream/40 transition text-sm"
                   >
-                    sair
+                    Sair
                   </button>
                 </div>
 
@@ -331,7 +323,7 @@ function ProfilePage() {
                     onClick={() => setConfirmWipe(true)}
                     className="px-4 py-2 rounded-full border border-blush/40 text-blush hover:bg-blush/10 transition text-sm"
                   >
-                    apagar dados
+                    Apagar dados
                   </button>
                 </div>
               </div>
@@ -344,7 +336,7 @@ function ProfilePage() {
         <AlertDialogContent className="max-w-md border-border bg-charcoal text-cream sm:rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle className="font-display italic text-2xl font-normal text-blush">
-              apagar todos os seus dados?
+              Apagar todos os seus dados?
             </AlertDialogTitle>
             <AlertDialogDescription className="text-cream/60 leading-relaxed">
               Sua despensa e todas as suas receitas salvas serão removidas. Essa ação não pode ser
@@ -353,7 +345,7 @@ function ProfilePage() {
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-2 gap-2 sm:gap-0">
             <AlertDialogCancel className="rounded-full border border-border bg-transparent px-6 py-2.5 text-sm text-cream/70 transition hover:border-cream/40 hover:bg-transparent hover:text-cream">
-              cancelar
+              Cancelar
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
@@ -362,7 +354,7 @@ function ProfilePage() {
               }}
               className="rounded-full bg-red-500/90 px-6 py-2.5 text-sm text-cream transition hover:bg-red-500"
             >
-              apagar tudo
+              Apagar tudo
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

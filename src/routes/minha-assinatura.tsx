@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { CreditCard, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/contexts/SubscriptionContext";
-import { PLANS, PLAN_EMOJI, PLAN_LABEL } from "@/lib/plans";
+import { PLANS, PLAN_ICON, PLAN_ICONS, PLAN_LABEL } from "@/lib/plans";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -64,7 +64,7 @@ function SubscriptionPage() {
   if (authLoading || !session || loading) {
     return (
       <div className="min-h-screen bg-charcoal text-cream">
-        <div className="py-24 text-center text-cream/50">carregando...</div>
+        <div className="py-24 text-center text-cream/50">Carregando...</div>
       </div>
     );
   }
@@ -88,8 +88,7 @@ function SubscriptionPage() {
   return (
     <div className="min-h-screen bg-charcoal text-cream">
       <main className="max-w-3xl mx-auto px-6 lg:px-10 py-14">
-        <p className="text-xs uppercase tracking-[0.25em] text-cream/40">assinatura</p>
-        <h1 className="font-display italic text-4xl text-blush mt-3">minha assinatura</h1>
+        <h1 className="font-display italic text-4xl text-blush mt-3">Minha assinatura</h1>
         <p className="text-cream/60 mt-3">
           Acompanhe seu plano, o status da cobrança e mude quando quiser.
         </p>
@@ -98,13 +97,16 @@ function SubscriptionPage() {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-2.5">
-                <span className="text-3xl">{PLAN_EMOJI[tier]}</span>
+                {(() => {
+                  const I = PLAN_ICONS[PLAN_ICON[tier]];
+                  return <I className="h-7 w-7 text-blush" strokeWidth={1.25} />;
+                })()}
                 <div>
                   <h2 className="font-display italic text-2xl text-blush">{PLAN_LABEL[tier]}</h2>
                   {plan && (
                     <p className="text-sm text-cream/45">
                       {plan.price}
-                      <span className="text-cream/55"> · {plan.priceNote}</span>
+                      <span className="text-cream/55"> — {plan.priceNote}</span>
                     </p>
                   )}
                 </div>
@@ -127,7 +129,7 @@ function SubscriptionPage() {
 
           <dl className="mt-7 grid gap-4 border-t border-border pt-6 sm:grid-cols-2">
             <div>
-              <dt className="text-xs uppercase tracking-wider text-cream/55">status</dt>
+              <dt className="text-sm text-cream/55">status</dt>
               <dd className="mt-1.5 text-sm text-cream/80">
                 {isFree
                   ? "Plano gratuito, sem cobrança"
@@ -137,7 +139,7 @@ function SubscriptionPage() {
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-wider text-cream/55">
+              <dt className="text-sm text-cream/55">
                 {isCanceled ? "acesso até" : "próxima renovação"}
               </dt>
               <dd className="mt-1.5 text-sm text-cream/80">
@@ -170,7 +172,7 @@ function SubscriptionPage() {
                 onClick={() => setConfirmOpen(true)}
                 className="rounded-full border border-border px-6 py-2.5 text-sm text-cream/60 transition hover:border-red-400/50 hover:text-red-400"
               >
-                cancelar assinatura
+                Cancelar assinatura
               </button>
             )}
           </div>

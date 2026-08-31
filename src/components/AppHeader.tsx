@@ -1,19 +1,26 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Menu } from "lucide-react";
+import { Menu, Moon, Sun } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/contexts/SubscriptionContext";
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { PLAN_EMOJI, PLAN_LABEL } from "@/lib/plans";
+import { useTheme } from "@/contexts/ThemeContext";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { PLAN_ICON, PLAN_ICONS, PLAN_LABEL } from "@/lib/plans";
 
 // Navegação principal: a partir de lg (1024px) ocupa o vão entre o logo e o
 // menu, centralizada nele; abaixo disso — tablet e celular — vira a primeira
 // seção da gaveta.
 const MAIN_NAV = [
-  { to: "/receitas", label: "receitas", authOnly: false },
-  { to: "/minhas-receitas", label: "minhas receitas", authOnly: true },
-  { to: "/minha-despensa", label: "minha despensa", authOnly: true },
-  { to: "/planos", label: "planos", authOnly: false },
+  { to: "/receitas", label: "Receitas", authOnly: false },
+  { to: "/minhas-receitas", label: "Minhas receitas", authOnly: true },
+  { to: "/minha-despensa", label: "Minha despensa", authOnly: true },
+  { to: "/planos", label: "Planos", authOnly: false },
 ] as const;
 
 export function AppHeader() {
@@ -21,6 +28,8 @@ export function AppHeader() {
   const path = location.pathname;
   const { session, signOut } = useAuth();
   const { tier } = useSubscription();
+  const { theme, toggleTheme } = useTheme();
+  const PlanIcon = PLAN_ICONS[PLAN_ICON[tier]];
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
@@ -37,7 +46,7 @@ export function AppHeader() {
   const drawerLinkClass = (to: string) =>
     `text-sm py-2 transition ${path === to ? "text-blush" : "text-cream/70 hover:text-cream"}`;
 
-  const sectionLabelClass = "text-xs uppercase tracking-[0.25em] text-cream/50";
+  const sectionLabelClass = "text-sm text-cream/45";
 
   return (
     <header className="sticky top-0 z-50 bg-charcoal/85 backdrop-blur-xl border-b border-border">
@@ -75,7 +84,7 @@ export function AppHeader() {
         <div className="ml-auto flex items-center shrink-0">
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger
-              aria-label="abrir menu"
+              aria-label="Abrir menu"
               className="text-cream p-2 -mr-2 transition hover:text-blush"
             >
               <Menu size={22} />
@@ -85,12 +94,17 @@ export function AppHeader() {
               side="right"
               className="w-[min(320px,85vw)] border-border bg-charcoal text-cream"
             >
+              {/* Radix avisa no console quando o conteúdo não tem descrição;
+                  ambos são só para leitor de tela. */}
               <SheetTitle className="sr-only">Menu</SheetTitle>
+              <SheetDescription className="sr-only">
+                Navegação do site, acesso à sua assinatura e opção de sair da conta.
+              </SheetDescription>
 
               <div className="mt-8 flex flex-col">
                 {/* Acima de lg a navegação já está no topo; aqui ela só existe abaixo disso */}
                 <div className="flex flex-col lg:hidden">
-                  <p className={sectionLabelClass}>navegação</p>
+                  <p className={sectionLabelClass}>Navegação</p>
                   <nav className="mt-3 flex flex-col">
                     {navItems.map((item) => (
                       <Link
@@ -106,7 +120,20 @@ export function AppHeader() {
                   <div className="h-px bg-border my-5" />
                 </div>
 
-                <p className={sectionLabelClass}>perfil</p>
+                <div className="flex flex-col">
+                  <p className={sectionLabelClass}>Aparência</p>
+                  <button
+                    onClick={toggleTheme}
+                    className="mt-3 flex w-fit items-center gap-2 rounded-full border border-border px-3 py-1.5 text-xs text-cream/70 transition hover:border-blush hover:text-blush"
+                    aria-label={theme === "dark" ? "Ativar modo claro" : "Ativar modo escuro"}
+                  >
+                    {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
+                    Modo {theme === "dark" ? "claro" : "escuro"}
+                  </button>
+                  <div className="h-px bg-border my-5" />
+                </div>
+
+                <p className={sectionLabelClass}>Perfil</p>
                 {session ? (
                   <div className="mt-3 flex flex-col">
                     {/* Plano contratado: também é o caminho para a assinatura */}
@@ -119,8 +146,8 @@ export function AppHeader() {
                           : "border-border text-cream/60 hover:border-blush hover:text-blush"
                       }`}
                     >
-                      <span>{PLAN_EMOJI[tier]}</span>
-                      plano {PLAN_LABEL[tier]}
+                      <PlanIcon size={13} strokeWidth={1.5} />
+                      Plano {PLAN_LABEL[tier]}
                     </Link>
                     <Link
                       to="/perfil"
@@ -133,7 +160,7 @@ export function AppHeader() {
                       onClick={handleLogout}
                       className="text-sm py-2 text-left text-cream/70 transition hover:text-blush"
                     >
-                      sair
+                      Sair
                     </button>
                   </div>
                 ) : (
@@ -143,14 +170,14 @@ export function AppHeader() {
                       onClick={() => setOpen(false)}
                       className={drawerLinkClass("/login")}
                     >
-                      logar
+                      Logar
                     </Link>
                     <Link
                       to="/cadastro"
                       onClick={() => setOpen(false)}
                       className="text-sm py-2 text-blush transition hover:text-blush-deep italic font-display"
                     >
-                      cadastrar
+                      Cadastrar
                     </Link>
                   </div>
                 )}

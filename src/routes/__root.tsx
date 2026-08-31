@@ -2,6 +2,7 @@ import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/r
 import { AuthProvider } from "@/contexts/AuthContext";
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import { PlanGateProvider } from "@/contexts/PlanGateContext";
+import { ThemeProvider, THEME_INIT_SCRIPT } from "@/contexts/ThemeContext";
 import { PantryChat } from "@/components/PantryChat";
 import { AppHeader } from "@/components/AppHeader";
 import { OG_IMAGE_URL } from "@/lib/site";
@@ -74,17 +75,22 @@ function RootShell({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <head>
+        {/* Antes de qualquer pintura: define data-theme e evita o flash do tema
+            errado em quem escolheu o claro. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <HeadContent />
       </head>
       <body>
-        <AuthProvider>
-          <SubscriptionProvider>
-            <PlanGateProvider>
-              {children}
-              <PantryChat />
-            </PlanGateProvider>
-          </SubscriptionProvider>
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <SubscriptionProvider>
+              <PlanGateProvider>
+                {children}
+                <PantryChat />
+              </PlanGateProvider>
+            </SubscriptionProvider>
+          </AuthProvider>
+        </ThemeProvider>
         <Scripts />
       </body>
     </html>

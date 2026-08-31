@@ -23,9 +23,14 @@ function DefaultErrorComponent({ error, reset }: { error: Error; reset: () => vo
             />
           </svg>
         </div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Something went wrong</h1>
+        {/* Último recurso: só chega aqui erro que nenhuma tela tratou. As falhas
+            previsíveis (pagamento, geração de receitas) têm mensagem própria no
+            lugar onde acontecem. */}
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          Essa página não carregou
+        </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          An unexpected error occurred. Please try again.
+          Algo saiu do lugar por aqui. Tente novamente — se insistir, recarregue a página.
         </p>
         {import.meta.env.DEV && error.message && (
           <pre className="mt-4 max-h-40 overflow-auto rounded-md bg-muted p-3 text-left font-mono text-xs text-destructive">

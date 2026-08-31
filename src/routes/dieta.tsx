@@ -97,7 +97,7 @@ function DietPage() {
   if (authLoading || !session || subLoading) {
     return (
       <div className="min-h-screen bg-charcoal text-cream">
-        <div className="py-24 text-center text-cream/50">carregando...</div>
+        <div className="py-24 text-center text-cream/50">Carregando...</div>
       </div>
     );
   }
@@ -110,7 +110,7 @@ function DietPage() {
             <Lock className="text-blush" size={24} />
           </div>
           <h1 className="font-display italic text-3xl text-blush mt-6">
-            planos de dieta são exclusivos do premium
+            Planos de dieta são exclusivos do premium
           </h1>
           <p className="text-cream/60 mt-3 leading-relaxed">
             Seu plano atual é o{" "}
@@ -121,7 +121,7 @@ function DietPage() {
             to="/planos"
             className="inline-block mt-8 rounded-full bg-blush px-7 py-3 text-sm text-charcoal hover:bg-blush-deep transition"
           >
-            ver planos
+            Ver planos
           </Link>
         </main>
       </div>
@@ -166,7 +166,7 @@ function DietPage() {
         .select("id, title, created_at")
         .maybeSingle();
       if (inserted) setHistory((prev) => [inserted, ...prev]);
-      toast.success("Plano gerado e salvo! 🥗");
+      toast.success("Plano gerado e salvo.");
     } catch (err) {
       console.error(err);
       toast.error(err instanceof Error ? err.message : "Não consegui gerar o plano.");
@@ -197,7 +197,7 @@ function DietPage() {
     }
     setHistory((prev) => prev.map((h) => (h.id === id ? { ...h, title } : h)));
     setRenamingId(null);
-    toast.success("Plano renomeado! ✏️");
+    toast.success("Plano renomeado.");
   };
 
   const handleDelete = async () => {
@@ -210,14 +210,13 @@ function DietPage() {
       return;
     }
     setHistory((prev) => prev.filter((h) => h.id !== id));
-    toast.success("Plano apagado. 🗑️");
+    toast.success("Plano apagado.");
   };
 
   return (
     <div className="min-h-screen bg-charcoal text-cream">
       <main className="max-w-4xl mx-auto px-6 lg:px-10 py-14">
-        <p className="text-xs uppercase tracking-[0.25em] text-cream/40">premium</p>
-        <h1 className="font-display italic text-4xl text-blush mt-3">seu cardápio sob medida 🥗</h1>
+        <h1 className="font-display italic text-4xl text-blush mt-3">Seu cardápio sob medida</h1>
         <p className="text-cream/60 mt-3">
           Conte seu objetivo e suas restrições. A IA monta 7 dias de refeições com calorias,
           priorizando o que já está na sua despensa.
@@ -228,7 +227,7 @@ function DietPage() {
           className="mt-8 rounded-2xl border border-border bg-cream/[0.02] p-6 space-y-6"
         >
           <div>
-            <label className="text-sm text-cream/70">objetivo</label>
+            <label className="text-sm text-cream/70">Objetivo</label>
             <div className="mt-2 flex flex-wrap gap-2">
               {OBJECTIVES.map((o) => (
                 <button
@@ -248,13 +247,13 @@ function DietPage() {
             <input
               value={objective}
               onChange={(e) => setObjective(e.target.value)}
-              placeholder="ou escreva seu objetivo"
+              placeholder="Ou escreva seu objetivo"
               className="mt-3 w-full rounded-lg border border-border bg-charcoal px-4 py-2.5 text-sm text-cream placeholder:text-cream/45 focus:border-blush focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="text-sm text-cream/70">restrições alimentares</label>
+            <label className="text-sm text-cream/70">Restrições alimentares</label>
             <div className="mt-2 flex flex-wrap gap-2">
               {RESTRICTIONS.map((r) => (
                 <button
@@ -274,12 +273,12 @@ function DietPage() {
           </div>
 
           <div>
-            <label className="text-sm text-cream/70">observações (opcional)</label>
+            <label className="text-sm text-cream/70">Observações (opcional)</label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
-              placeholder="ex: treino 4x por semana, não gosto de peixe, cozinho só à noite"
+              placeholder="Ex: treino 4x por semana, não gosto de peixe, cozinho só à noite"
               className="mt-2 w-full rounded-lg border border-border bg-charcoal px-4 py-2.5 text-sm text-cream placeholder:text-cream/45 focus:border-blush focus:outline-none"
             />
           </div>
@@ -291,11 +290,11 @@ function DietPage() {
           >
             {busy ? (
               <>
-                <Loader2 className="animate-spin" size={16} /> montando cardápio...
+                <Loader2 className="animate-spin" size={16} /> Montando cardápio...
               </>
             ) : (
               <>
-                <Sparkles size={16} /> gerar plano de 7 dias
+                <Sparkles size={16} /> Gerar plano de 7 dias
               </>
             )}
           </button>
@@ -303,7 +302,7 @@ function DietPage() {
 
         {history.length > 0 && (
           <section className="mt-8">
-            <h2 className="text-sm text-cream/50">planos salvos</h2>
+            <h2 className="text-sm text-cream/50">Planos salvos</h2>
             <div className="mt-3 grid gap-2">
               {history.map((h) => (
                 <div
@@ -324,14 +323,14 @@ function DietPage() {
                       />
                       <button
                         onClick={() => confirmRename(h.id)}
-                        aria-label="salvar nome"
+                        aria-label="Salvar nome"
                         className="rounded-full p-1.5 text-blush hover:bg-blush/10 transition"
                       >
                         <Check size={14} />
                       </button>
                       <button
                         onClick={() => setRenamingId(null)}
-                        aria-label="cancelar"
+                        aria-label="Cancelar"
                         className="rounded-full p-1.5 text-cream/50 hover:text-cream transition"
                       >
                         <X size={14} />
@@ -343,7 +342,7 @@ function DietPage() {
                         onClick={() => openHistory(h.id)}
                         className="flex-1 text-left text-xs text-cream/65 hover:text-blush transition"
                       >
-                        {h.title || "plano"} ·{" "}
+                        {h.title || "plano"} —{" "}
                         <span className="text-cream/55">
                           {new Date(h.created_at).toLocaleDateString("pt-BR")}
                         </span>
@@ -353,14 +352,14 @@ function DietPage() {
                           setRenamingId(h.id);
                           setRenameValue(h.title || "");
                         }}
-                        aria-label="renomear plano"
+                        aria-label="Renomear plano"
                         className="rounded-full p-1.5 text-cream/45 hover:text-blush hover:bg-blush/10 transition"
                       >
                         <Pencil size={14} />
                       </button>
                       <button
                         onClick={() => setDeletingId(h.id)}
-                        aria-label="apagar plano"
+                        aria-label="Apagar plano"
                         className="rounded-full p-1.5 text-cream/45 hover:text-red-400 hover:bg-red-400/10 transition"
                       >
                         <Trash2 size={14} />
@@ -379,7 +378,7 @@ function DietPage() {
             <p className="text-cream/65 mt-2">{plan.summary}</p>
             {plan.daily_calories_target && (
               <p className="text-sm text-blush mt-2">
-                🔥 meta diária: {plan.daily_calories_target} kcal
+                Meta diária: {plan.daily_calories_target} kcal
               </p>
             )}
 
@@ -412,7 +411,7 @@ function DietPage() {
 
             {plan.tips?.length ? (
               <div className="mt-6 rounded-2xl border border-blush/30 bg-blush/[0.05] p-5">
-                <h3 className="text-sm text-blush">dicas do chef</h3>
+                <h3 className="text-sm text-blush">Dicas do chef</h3>
                 <ul className="mt-2 space-y-1 text-sm text-cream/70">
                   {plan.tips.map((t, i) => (
                     <li key={i}>• {t}</li>
@@ -428,7 +427,7 @@ function DietPage() {
         <AlertDialogContent className="max-w-md border-border bg-charcoal text-cream sm:rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle className="font-display italic text-2xl font-normal text-blush">
-              apagar este plano?
+              Apagar este plano?
             </AlertDialogTitle>
             <AlertDialogDescription className="text-cream/60 leading-relaxed">
               O cardápio salvo será removido da sua lista. Essa ação não pode ser desfeita.
@@ -436,7 +435,7 @@ function DietPage() {
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-2 gap-2 sm:gap-0">
             <AlertDialogCancel className="rounded-full border border-border bg-transparent px-6 py-2.5 text-sm text-cream/70 transition hover:border-cream/40 hover:bg-transparent hover:text-cream">
-              manter
+              Manter
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
@@ -445,7 +444,7 @@ function DietPage() {
               }}
               className="rounded-full bg-blush px-6 py-2.5 text-sm text-charcoal transition hover:bg-blush-deep"
             >
-              apagar
+              Apagar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

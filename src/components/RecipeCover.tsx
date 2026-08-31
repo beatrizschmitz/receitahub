@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { getRecipeStyle } from "@/lib/recipe-emoji";
+import { RECIPE_ICONS, getRecipeStyle } from "@/lib/recipe-cover";
 
 /** Campos de foto que acompanham uma receita, venha ela da IA ou do banco. */
 export type RecipePhoto = {
@@ -8,10 +8,10 @@ export type RecipePhoto = {
   image_photographer_url?: string | null;
 };
 
-type EmojiLayout = "card" | "modal" | "solo";
+type CoverVariant = "card" | "modal" | "solo";
 
 /**
- * Capa da receita: foto real quando existe, emoji quando não.
+ * Capa da receita: foto real quando existe, ícone quando não.
  *
  * O fallback cobre três casos — o Pexels não achou nada, a busca falhou (limite
  * de requisições, rede) ou a URL guardada morreu, pego no onError do <img>.
@@ -22,7 +22,7 @@ export function RecipeCover({
   ingredients,
   imageUrl,
   className = "aspect-[4/3]",
-  emoji = "card",
+  variant = "card",
   children,
 }: {
   title?: string | null;
@@ -31,11 +31,11 @@ export function RecipeCover({
   imageUrl?: string | null;
   /** proporção ou altura do container: "aspect-[4/3]", "h-56", "aspect-[4/5]" */
   className?: string;
-  emoji?: EmojiLayout;
+  variant?: CoverVariant;
   children?: React.ReactNode;
 }) {
-  const { emojis, bg } = getRecipeStyle(title, category, ingredients);
-  const chars = Array.from(emojis);
+  const { icon, bg } = getRecipeStyle(title, category, ingredients);
+  const Icon = RECIPE_ICONS[icon];
   const [broken, setBroken] = useState(false);
   const showPhoto = Boolean(imageUrl) && !broken;
 
@@ -56,32 +56,19 @@ export function RecipeCover({
       ) : (
         <>
           <div className="absolute inset-0 bg-charcoal/20" />
+          {/* Um ícone só, em traço fino e discreto: substitui o trio de emojis,
+              que puxava a interface para um tom casual demais. */}
           <div className="absolute inset-0 flex items-center justify-center">
-            {emoji === "modal" ? (
-              <div className="flex items-center justify-center gap-3 select-none drop-shadow-lg">
-                {chars.map((c, i) => (
-                  <span key={i} className={i === 0 ? "text-8xl" : "text-5xl opacity-80"}>
-                    {c}
-                  </span>
-                ))}
-              </div>
-            ) : emoji === "solo" ? (
-              <span className="text-7xl select-none drop-shadow-lg">{chars[0]}</span>
-            ) : (
-              <div className="relative select-none drop-shadow-lg">
-                <span className="text-6xl">{chars[0]}</span>
-                {chars[1] && (
-                  <span className="absolute -top-2 -right-6 text-3xl opacity-80 rotate-12">
-                    {chars[1]}
-                  </span>
-                )}
-                {chars[2] && (
-                  <span className="absolute -bottom-2 -left-6 text-3xl opacity-80 -rotate-12">
-                    {chars[2]}
-                  </span>
-                )}
-              </div>
-            )}
+            <Icon
+              strokeWidth={1}
+              className={
+                variant === "modal"
+                  ? "h-20 w-20 text-cream/25"
+                  : variant === "solo"
+                    ? "h-16 w-16 text-cream/25"
+                    : "h-14 w-14 text-cream/25"
+              }
+            />
           </div>
         </>
       )}
@@ -92,7 +79,7 @@ export function RecipeCover({
 
 /**
  * Crédito ao fotógrafo, exigido pelos termos de uso da API do Pexels sempre que
- * a foto é exibida. Some quando a capa é emoji.
+ * a foto é exibida. Some quando a capa é ícone.
  */
 export function RecipePhotoCredit({
   imageUrl,

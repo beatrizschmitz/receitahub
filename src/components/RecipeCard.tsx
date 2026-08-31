@@ -5,13 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
 import { IngredientSubstitute } from "@/components/IngredientSubstitute";
 
-export function RecipeCard({
-  recipe,
-  pantry = [],
-}: {
-  recipe: Recipe;
-  pantry?: string[];
-}) {
+export function RecipeCard({ recipe, pantry = [] }: { recipe: Recipe; pantry?: string[] }) {
   const { session } = useAuth();
   const navigate = useNavigate();
   const [saved, setSaved] = useState(!!recipe.saved);
@@ -59,7 +53,7 @@ export function RecipeCard({
           loading="lazy"
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-charcoal via-charcoal/30 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent" />
 
         {/* Match badge */}
         <div className="absolute top-4 left-4 flex items-center gap-1.5 bg-charcoal/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-blush/30">
@@ -83,15 +77,17 @@ export function RecipeCard({
             strokeWidth="1.5"
             className={`h-4 w-4 ${saved ? "text-blush" : "text-cream"}`}
           >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z"
+            />
           </svg>
         </button>
 
         {/* Bottom info */}
         <div className="absolute bottom-0 inset-x-0 p-5">
-          <div className="text-xs uppercase tracking-widest text-blush/90 mb-2">
-            {recipe.category}
-          </div>
+          <div className="text-sm text-blush/90 mb-2">{recipe.category}</div>
           <h3 className="font-display text-2xl text-cream leading-tight">{recipe.title}</h3>
         </div>
       </div>
@@ -104,12 +100,20 @@ export function RecipeCard({
         <div className="flex items-center justify-between pt-2 border-t border-border">
           <div className="flex items-center gap-4 text-xs text-cream/70">
             <span className="flex items-center gap-1.5">
-              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <svg
+                className="h-3.5 w-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
                 <circle cx="12" cy="12" r="9" />
                 <path d="M12 7v5l3 2" strokeLinecap="round" />
               </svg>
               {recipe.time} min
             </span>
+            {/* valor sempre de uma palavra ("fácil"/"médio"/"difícil"), então capitalize
+                equivale a sentence case — e ::first-letter não funciona em span inline */}
             <span className="capitalize">{recipe.difficulty}</span>
           </div>
           <div className="flex gap-1">
@@ -128,9 +132,11 @@ export function RecipeCard({
           <div className="pt-2 border-t border-border">
             <button
               onClick={() => setShowIngredients((s) => !s)}
-              className="text-xs uppercase tracking-wider text-cream/60 hover:text-blush transition flex items-center gap-2 w-full"
+              className="text-sm text-cream/60 hover:text-blush transition flex items-center gap-2 w-full"
             >
-              <span>{showIngredients ? "ocultar" : "ver"} ingredientes ({ingredients.length})</span>
+              <span>
+                {showIngredients ? "ocultar" : "ver"} ingredientes ({ingredients.length})
+              </span>
               <span className="ml-auto">{showIngredients ? "−" : "+"}</span>
             </button>
             {showIngredients && (

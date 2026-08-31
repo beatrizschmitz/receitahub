@@ -72,7 +72,7 @@ function LoginPage() {
 
         <div className="bg-charcoal-light border border-border rounded-3xl p-8">
           <h1 className="text-3xl text-cream mb-2">
-            bem-vindo de <em className="font-display italic text-blush">volta</em>
+            Bem-vindo de <em className="font-display italic text-blush">volta</em>
           </h1>
           <p className="text-cream/60 text-sm mb-8">Entre para acessar sua despensa.</p>
 
@@ -91,13 +91,13 @@ function LoginPage() {
 
           <div className="flex items-center gap-4 mb-6">
             <div className="flex-1 h-px bg-border" />
-            <span className="text-xs uppercase tracking-wider text-cream/40">ou</span>
+            <span className="text-sm text-cream/40">ou</span>
             <div className="flex-1 h-px bg-border" />
           </div>
 
           <form onSubmit={handleEmailLogin} className="space-y-4">
             <div>
-              <label className="text-xs uppercase tracking-wider text-cream/60 mb-2 block">e-mail</label>
+              <label className="text-sm text-cream/60 mb-2 block">E-mail</label>
               <input
                 type="email"
                 required
@@ -107,7 +107,7 @@ function LoginPage() {
               />
             </div>
             <div>
-              <label className="text-xs uppercase tracking-wider text-cream/60 mb-2 block">senha</label>
+              <label className="text-sm text-cream/60 mb-2 block">Senha</label>
               <input
                 type="password"
                 required
@@ -133,9 +133,9 @@ function LoginPage() {
           </form>
 
           <p className="text-center text-sm text-cream/60 mt-6">
-            ainda não tem conta?{" "}
+            Ainda não tem conta?{" "}
             <Link to="/cadastro" className="text-blush hover:text-blush-deep font-medium">
-              cadastre-se
+              Cadastre-se
             </Link>
           </p>
         </div>

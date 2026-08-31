@@ -1,3 +1,6 @@
+import type { LucideIcon } from "lucide-react";
+import { ChefHat, Sparkles, Sprout } from "lucide-react";
+
 export type PlanTier = "free" | "basico" | "premium";
 
 export const FREE_CHAT_DAILY_LIMIT = 10;
@@ -8,7 +11,8 @@ export type PlanDefinition = {
   price: string;
   priceNote: string;
   tagline: string;
-  emoji: string;
+  /** Nome do ícone lucide que representa o plano (ver PLAN_ICONS). */
+  icon: PlanIconName;
   highlight?: boolean;
   features: { label: string; included: boolean }[];
 };
@@ -20,7 +24,7 @@ export const PLANS: PlanDefinition[] = [
     price: "R$ 0",
     priceNote: "para sempre",
     tagline: "para começar a cozinhar sem desperdício",
-    emoji: "🌱",
+    icon: "Sprout",
     features: [
       { label: "Despensa virtual com alertas de validade", included: true },
       { label: "Lista de compras automática", included: true },
@@ -36,7 +40,7 @@ export const PLANS: PlanDefinition[] = [
     price: "R$ 14,90",
     priceNote: "por mês",
     tagline: "para quem conversa muito com o chef",
-    emoji: "🍳",
+    icon: "ChefHat",
     highlight: true,
     features: [
       { label: "Tudo do plano gratuito", included: true },
@@ -52,7 +56,7 @@ export const PLANS: PlanDefinition[] = [
     price: "R$ 29,90",
     priceNote: "por mês",
     tagline: "para quem quer um cardápio sob medida",
-    emoji: "✨",
+    icon: "Sparkles",
     features: [
       { label: "Tudo do plano básico", included: true },
       { label: "Planos de dieta personalizados por IA", included: true },
@@ -69,10 +73,14 @@ export const PLAN_LABEL: Record<PlanTier, string> = {
   premium: "premium",
 };
 
-export const PLAN_EMOJI: Record<PlanTier, string> = {
-  free: "🌱",
-  basico: "🍳",
-  premium: "✨",
+// Ícone por plano, no lugar do emoji: mantém a distinção visual sem o tom casual.
+export const PLAN_ICONS = { Sprout, ChefHat, Sparkles } satisfies Record<string, LucideIcon>;
+export type PlanIconName = keyof typeof PLAN_ICONS;
+
+export const PLAN_ICON: Record<PlanTier, PlanIconName> = {
+  free: "Sprout",
+  basico: "ChefHat",
+  premium: "Sparkles",
 };
 
 const RANK: Record<PlanTier, number> = { free: 0, basico: 1, premium: 2 };

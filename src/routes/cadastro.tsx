@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Mail } from "lucide-react";
 import { useState, useEffect, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -89,20 +90,20 @@ function SignupPage() {
         <div className="bg-charcoal-light border border-border rounded-3xl p-8">
           {success ? (
             <div className="text-center py-6">
-              <div className="text-5xl mb-4">📬</div>
-              <h2 className="font-display text-2xl text-cream mb-3">verifique seu e-mail</h2>
+              <Mail className="mx-auto mb-4 h-9 w-9 text-blush" strokeWidth={1} />
+              <h2 className="font-display text-2xl text-cream mb-3">Verifique seu e-mail</h2>
               <p className="text-cream/70 text-sm mb-6">
                 Enviamos um link de confirmação para <strong className="text-blush">{email}</strong>.
                 Clique nele para ativar sua conta.
               </p>
               <Link to="/login" className="text-blush hover:text-blush-deep text-sm">
-                voltar para login →
+                Voltar para login
               </Link>
             </div>
           ) : (
             <>
               <h1 className="text-3xl text-cream mb-2">
-                criar <em className="font-display italic text-blush">conta</em>
+                Criar <em className="font-display italic text-blush">conta</em>
               </h1>
               <p className="text-cream/60 text-sm mb-8">Comece a cozinhar com o que você já tem.</p>
 
@@ -121,13 +122,13 @@ function SignupPage() {
 
               <div className="flex items-center gap-4 mb-6">
                 <div className="flex-1 h-px bg-border" />
-                <span className="text-xs uppercase tracking-wider text-cream/40">ou</span>
+                <span className="text-sm text-cream/40">ou</span>
                 <div className="flex-1 h-px bg-border" />
               </div>
 
               <form onSubmit={handleSignup} className="space-y-4">
                 <div>
-                  <label className="text-xs uppercase tracking-wider text-cream/60 mb-2 block">nome</label>
+                  <label className="text-sm text-cream/60 mb-2 block">Nome</label>
                   <input
                     required
                     value={name}
@@ -136,7 +137,7 @@ function SignupPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs uppercase tracking-wider text-cream/60 mb-2 block">e-mail</label>
+                  <label className="text-sm text-cream/60 mb-2 block">E-mail</label>
                   <input
                     type="email"
                     required
@@ -146,7 +147,7 @@ function SignupPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs uppercase tracking-wider text-cream/60 mb-2 block">senha</label>
+                  <label className="text-sm text-cream/60 mb-2 block">Senha</label>
                   <input
                     type="password"
                     required
@@ -155,7 +156,7 @@ function SignupPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full bg-charcoal border border-border rounded-xl px-4 py-3 text-cream focus:outline-none focus:border-blush/50 transition"
                   />
-                  <p className="text-xs text-cream/40 mt-1.5">mínimo 6 caracteres</p>
+                  <p className="text-xs text-cream/40 mt-1.5">Mínimo 6 caracteres</p>
                 </div>
 
                 {error && (
@@ -174,9 +175,9 @@ function SignupPage() {
               </form>
 
               <p className="text-center text-sm text-cream/60 mt-6">
-                já tem conta?{" "}
+                Já tem conta?{" "}
                 <Link to="/login" className="text-blush hover:text-blush-deep font-medium">
-                  entrar
+                  Entrar
                 </Link>
               </p>
             </>

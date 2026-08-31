@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { getRecipeStyle } from "@/lib/recipe-emoji";
+import { RecipeCover, RecipePhotoCredit } from "@/components/RecipeCover";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,6 +16,7 @@ export const Route = createFileRoute("/minhas-receitas")({
 
 type UserRecipe = {
   id: string; title: string; image_url: string | null; category: string | null;
+  image_photographer: string | null; image_photographer_url: string | null;
   time_minutes: number | null; difficulty: string | null; diet: string[] | null;
   description: string | null; is_favorite: boolean;
   ingredients: string[] | null; instructions: string | null;
@@ -28,30 +29,6 @@ type CalorieEntry = {
   id: string; recipe_id: string | null; recipe_title: string;
   calories: number; consumed_at: string;
 };
-
-function RecipeCover({ title, category, ingredients, size = "card" }: { title?: string | null; category: string | null; ingredients?: string[] | null; size?: "card" | "modal" }) {
-  const { emojis, bg } = getRecipeStyle(title, category, ingredients);
-  const h = size === "modal" ? "h-56" : "aspect-[4/3]";
-  const chars = Array.from(emojis);
-  return (
-    <div className={`${h} w-full bg-gradient-to-br ${bg} flex items-center justify-center relative overflow-hidden`}>
-      <div className="absolute inset-0 bg-charcoal/20" />
-      {size === "modal" ? (
-        <div className="relative flex items-center justify-center gap-3 select-none drop-shadow-lg">
-          {chars.map((c, i) => (
-            <span key={i} className={i === 0 ? "text-8xl" : "text-5xl opacity-80"}>{c}</span>
-          ))}
-        </div>
-      ) : (
-        <div className="relative select-none drop-shadow-lg">
-          <span className="text-6xl">{chars[0]}</span>
-          {chars[1] && <span className="absolute -top-2 -right-6 text-3xl opacity-80 rotate-12">{chars[1]}</span>}
-          {chars[2] && <span className="absolute -bottom-2 -left-6 text-3xl opacity-80 -rotate-12">{chars[2]}</span>}
-        </div>
-      )}
-    </div>
-  );
-}
 
 // ─── Modal de detalhes da receita salva ──────────────────────────────────────
 function RecipeDetailModal({ recipe, onClose, onDelete, onFavorite, onRate, onSaveNotes, onAteIt }: {
@@ -86,7 +63,7 @@ function RecipeDetailModal({ recipe, onClose, onDelete, onFavorite, onRate, onSa
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
       <div className="relative z-10 bg-charcoal border border-border rounded-t-3xl md:rounded-3xl w-full md:max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="relative rounded-t-3xl overflow-hidden">
-          <RecipeCover title={recipe.title} category={recipe.category} ingredients={recipe.ingredients} size="modal" />
+          <RecipeCover title={recipe.title} category={recipe.category} ingredients={recipe.ingredients} imageUrl={recipe.image_url} className="h-56" emoji="modal" />
           <button onClick={onClose} className="absolute top-4 right-4 h-8 w-8 flex items-center justify-center rounded-full bg-charcoal/80 text-cream hover:bg-charcoal transition text-lg">×</button>
           <button onClick={() => onFavorite(recipe.id, !recipe.is_favorite)}
             className={`absolute top-4 left-4 h-8 w-8 flex items-center justify-center rounded-full transition ${recipe.is_favorite ? "bg-blush text-charcoal" : "bg-charcoal/80 text-cream/60 hover:text-blush"}`}
@@ -192,6 +169,7 @@ function RecipeDetailModal({ recipe, onClose, onDelete, onFavorite, onRate, onSa
             className="w-full py-3 rounded-full text-sm font-medium border border-red-500/30 text-red-400 hover:bg-red-500/10 transition">
             Remover receita
           </button>
+          <RecipePhotoCredit imageUrl={recipe.image_url} photographer={recipe.image_photographer} photographerUrl={recipe.image_photographer_url} className="text-center" />
         </div>
       </div>
     </div>
@@ -340,7 +318,7 @@ function MyRecipesPage() {
       const today = new Date().toISOString().slice(0, 10);
       const [recipesRes, caloriesRes] = await Promise.all([
         supabase.from("user_recipes")
-          .select("id, title, image_url, category, time_minutes, difficulty, diet, description, is_favorite, ingredients, instructions, calories_per_serving, rating, notes, times_cooked, cost_home_brl, cost_delivery_brl")
+          .select("id, title, image_url, image_photographer, image_photographer_url, category, time_minutes, difficulty, diet, description, is_favorite, ingredients, instructions, calories_per_serving, rating, notes, times_cooked, cost_home_brl, cost_delivery_brl")
           .order("created_at", { ascending: false }),
         supabase.from("calorie_log")
           .select("id, recipe_id, recipe_title, calories, consumed_at")
@@ -350,6 +328,35 @@ function MyRecipesPage() {
       if (!recipesRes.error && recipesRes.data) setRecipes(recipesRes.data as UserRecipe[]);
       if (!caloriesRes.error && caloriesRes.data) setCalorieEntries(caloriesRes.data as CalorieEntry[]);
       setLoading(false);
+
+      // Receitas salvas antes das fotos (ou importadas) não têm image_url.
+      // Busca uma foto pelo título — o acerto é baixo, porque o Pexels indexa em
+      // inglês e o título é português, mas o resultado (positivo ou negativo)
+      // fica no cache da recipe_images e não custa nada nas próximas visitas.
+      // Nada é gravado em user_recipes: a foto vale só para esta sessão.
+      const semFoto = (recipesRes.data ?? []).filter((r) => !r.image_url);
+      if (semFoto.length > 0) {
+        const { data: imgData } = await supabase.functions.invoke("recipe-images", {
+          body: { queries: semFoto.map((r) => r.title) },
+        });
+        const images = (imgData?.images ?? {}) as Record<
+          string,
+          { image_url: string; photographer: string; photographer_url: string } | null
+        >;
+        setRecipes((prev) =>
+          prev.map((r) => {
+            const found = r.image_url ? null : images[r.title];
+            return found
+              ? {
+                  ...r,
+                  image_url: found.image_url,
+                  image_photographer: found.photographer,
+                  image_photographer_url: found.photographer_url,
+                }
+              : r;
+          }),
+        );
+      }
     })();
   }, [session]);
 
@@ -549,7 +556,7 @@ function MyRecipesPage() {
             {displayed.map((r) => (
               <article key={r.id} onClick={() => setSelectedRecipe(r)}
                 className="group cursor-pointer bg-charcoal-light rounded-2xl overflow-hidden border border-border hover:border-blush/40 transition-all">
-                <RecipeCover title={r.title} category={r.category} ingredients={r.ingredients} size="card" />
+                <RecipeCover title={r.title} category={r.category} ingredients={r.ingredients} imageUrl={r.image_url} className="aspect-[4/3]" emoji="card" />
                 <div className="p-5">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="flex-1">

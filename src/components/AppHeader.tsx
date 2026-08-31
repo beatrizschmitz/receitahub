@@ -6,8 +6,8 @@ import { useSubscription } from "@/contexts/SubscriptionContext";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { PLAN_EMOJI, PLAN_LABEL } from "@/lib/plans";
 
-// Navegação principal: fica ao lado do logo a partir de md e, no mobile,
-// vira a primeira seção da gaveta.
+// Navegação principal: fica ao lado do logo a partir de lg (1024px) e, abaixo
+// disso — tablet e celular —, vira a primeira seção da gaveta.
 const MAIN_NAV = [
   { to: "/receitas", label: "receitas", authOnly: false },
   { to: "/minhas-receitas", label: "minhas receitas", authOnly: true },
@@ -49,7 +49,7 @@ export function AppHeader() {
         </Link>
 
         {/* Menu principal ao lado do logo; no mobile ele desce para a gaveta */}
-        <nav className="hidden md:flex items-center gap-7">
+        <nav className="hidden lg:flex items-center gap-7">
           {navItems.map((item) => {
             const active = path === item.to;
             return (
@@ -83,8 +83,8 @@ export function AppHeader() {
               <SheetTitle className="sr-only">Menu</SheetTitle>
 
               <div className="mt-8 flex flex-col">
-                {/* No desktop essa navegação já está no topo; aqui ela existe só no mobile */}
-                <div className="flex flex-col md:hidden">
+                {/* Acima de lg a navegação já está no topo; aqui ela só existe abaixo disso */}
+                <div className="flex flex-col lg:hidden">
                   <p className={sectionLabelClass}>navegação</p>
                   <nav className="mt-3 flex flex-col">
                     {navItems.map((item) => (

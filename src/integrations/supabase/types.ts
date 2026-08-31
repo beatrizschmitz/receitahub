@@ -296,6 +296,8 @@ export type Database = {
           diet: string[] | null
           difficulty: string | null
           id: string
+          image_photographer: string | null
+          image_photographer_url: string | null
           image_url: string | null
           ingredients: string[] | null
           instructions: string | null
@@ -318,6 +320,8 @@ export type Database = {
           diet?: string[] | null
           difficulty?: string | null
           id?: string
+          image_photographer?: string | null
+          image_photographer_url?: string | null
           image_url?: string | null
           ingredients?: string[] | null
           instructions?: string | null
@@ -340,6 +344,8 @@ export type Database = {
           diet?: string[] | null
           difficulty?: string | null
           id?: string
+          image_photographer?: string | null
+          image_photographer_url?: string | null
           image_url?: string | null
           ingredients?: string[] | null
           instructions?: string | null

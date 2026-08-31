@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { recipes as catalogRecipes } from "@/data/recipes";
+import { RecipeCover, RecipePhotoCredit } from "@/components/RecipeCover";
 
 export const Route = createFileRoute("/")({
   component: LandingPage,
@@ -24,28 +25,14 @@ const steps = [
   { n: "03", title: "Cozinhe sem sobras", text: "Ajuste porções, substitua ingredientes e marque o que já usou. A despensa atualiza sozinha." },
 ];
 
-const CATEGORY_STYLE: Record<string, { emoji: string; bg: string }> = {
-  "prato principal": { emoji: "🍗", bg: "from-amber-900/40 to-amber-800/20" },
-  "massa":           { emoji: "🍝", bg: "from-orange-900/40 to-orange-800/20" },
-  "salada":          { emoji: "🥗", bg: "from-green-900/40 to-green-800/20" },
-  "sobremesa":       { emoji: "🍰", bg: "from-pink-900/40 to-pink-800/20" },
-  "pães":            { emoji: "🍞", bg: "from-yellow-900/40 to-yellow-800/20" },
-  "sopa":            { emoji: "🍲", bg: "from-red-900/40 to-red-800/20" },
-  "lanche":          { emoji: "🥪", bg: "from-lime-900/40 to-lime-800/20" },
-  "bebida":          { emoji: "🥤", bg: "from-cyan-900/40 to-cyan-800/20" },
-  "default":         { emoji: "🍽️", bg: "from-zinc-800/60 to-zinc-700/30" },
-};
-
-function getCategoryStyle(category: string) {
-  const lower = category?.toLowerCase() ?? "";
-  const key = Object.keys(CATEGORY_STYLE).find((k) => lower.includes(k));
-  return CATEGORY_STYLE[key ?? "default"];
-}
-
 type FeaturedRecipe = {
   id: string; title: string; category: string; time_minutes: number | null;
   description: string | null; ingredients: string[] | null; instructions: string | null;
   difficulty: string | null; diet: string[] | null; servings?: number;
+  // Vêm do generate-recipes (Pexels) ou de user_recipes; null cai no emoji.
+  image_url?: string | null;
+  image_photographer?: string | null;
+  image_photographer_url?: string | null;
 };
 
 // Catálogo curado local: último recurso quando não há receitas salvas nem IA disponível
@@ -59,6 +46,7 @@ const FALLBACK_FEATURED: FeaturedRecipe[] = catalogRecipes.slice(0, 6).map((r) =
   instructions: r.instructions ?? null,
   difficulty: r.difficulty,
   diet: r.diet,
+  image_url: r.image,
 }));
 
 // Mini modal para receitas em destaque
@@ -69,15 +57,14 @@ function FeaturedModal({ recipe, onClose }: { recipe: FeaturedRecipe; onClose: (
     return () => window.removeEventListener("keydown", h);
   }, [onClose]);
 
-  const { emoji, bg } = getCategoryStyle(recipe.category);
-
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-6" onClick={onClose}>
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
       <div className="relative z-10 bg-charcoal border border-border rounded-t-3xl md:rounded-3xl w-full md:max-w-2xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className={`h-48 w-full bg-gradient-to-br ${bg} flex items-center justify-center relative rounded-t-3xl overflow-hidden`}>
-          <div className="absolute inset-0 bg-charcoal/20" />
-          <span className="relative text-7xl select-none drop-shadow-lg">{emoji}</span>
+        <RecipeCover
+          title={recipe.title} category={recipe.category} ingredients={recipe.ingredients}
+          imageUrl={recipe.image_url} className="h-48 rounded-t-3xl" emoji="solo"
+        >
           <button onClick={onClose} className="absolute top-4 right-4 h-8 w-8 flex items-center justify-center rounded-full bg-charcoal/80 text-cream hover:bg-charcoal transition text-lg">×</button>
           <div className="absolute bottom-4 left-6">
             <div className="flex flex-wrap gap-2 mb-1">
@@ -85,7 +72,7 @@ function FeaturedModal({ recipe, onClose }: { recipe: FeaturedRecipe; onClose: (
             </div>
             <h2 className="font-display text-2xl text-cream leading-tight drop-shadow-lg">{recipe.title}</h2>
           </div>
-        </div>
+        </RecipeCover>
         <div className="p-6 space-y-5">
           <div className="flex gap-4 text-sm text-cream/60">
             {recipe.time_minutes && <span>⏱ {recipe.time_minutes} min</span>}
@@ -116,6 +103,7 @@ function FeaturedModal({ recipe, onClose }: { recipe: FeaturedRecipe; onClose: (
           <Link to="/receitas" onClick={onClose} className="block w-full py-3 rounded-full bg-blush text-charcoal text-sm font-medium text-center hover:bg-blush-deep transition">
             Ver mais receitas →
           </Link>
+          <RecipePhotoCredit imageUrl={recipe.image_url} photographer={recipe.image_photographer} photographerUrl={recipe.image_photographer_url} className="text-center" />
         </div>
       </div>
     </div>
@@ -153,7 +141,7 @@ function LandingPage() {
         const { data, error } = await supabase
           .from("user_recipes")
           .select(
-            "id, title, category, time_minutes, description, ingredients, instructions, difficulty, diet",
+            "id, title, category, time_minutes, description, ingredients, instructions, difficulty, diet, image_url, image_photographer, image_photographer_url",
           )
           .order("created_at", { ascending: false })
           .limit(6);
@@ -171,6 +159,9 @@ function LandingPage() {
               instructions: r.instructions ?? "",
               difficulty: r.difficulty ?? "",
               diet: r.diet ?? [],
+              image_url: r.image_url,
+              image_photographer: r.image_photographer,
+              image_photographer_url: r.image_photographer_url,
             })),
           );
           return;
@@ -340,12 +331,13 @@ function LandingPage() {
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-12">
             {featured.map((r, i) => {
-              const { emoji, bg } = getCategoryStyle(r.category);
               return (
                 <button key={r.id} onClick={() => setSelectedFeatured(r)} className="group text-left block w-full">
-                  <div className={`relative aspect-[4/5] rounded-2xl overflow-hidden mb-4 border border-border bg-gradient-to-br ${bg} flex items-center justify-center hover:border-blush/40 transition`}>
-                    <div className="absolute inset-0 bg-charcoal/20" />
-                    <span className="relative text-7xl select-none drop-shadow-lg">{emoji}</span>
+                  <RecipeCover
+                    title={r.title} category={r.category} ingredients={r.ingredients}
+                    imageUrl={r.image_url} emoji="solo"
+                    className="aspect-[4/5] rounded-2xl mb-4 border border-border group-hover:border-blush/40 transition"
+                  >
                     <div className="absolute inset-0 bg-gradient-to-t from-charcoal/60 via-transparent to-transparent" />
                     <span className="absolute top-4 left-4 font-display italic text-cream/80 text-sm">nº {String(i + 1).padStart(2, "0")}</span>
                     <div className="absolute bottom-4 left-4 right-4">
@@ -355,7 +347,7 @@ function LandingPage() {
                         </div>
                       )}
                     </div>
-                  </div>
+                  </RecipeCover>
                   <div className="text-xs uppercase tracking-widest text-blush/90 mb-1.5">
                     {r.category}{r.time_minutes ? ` · ${r.time_minutes} min` : ""}
                   </div>

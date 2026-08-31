@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { getRecipeStyle } from "@/lib/recipe-emoji";
+import { RecipeCover, RecipePhotoCredit } from "@/components/RecipeCover";
 
 export const Route = createFileRoute("/receitas")({
   component: RecipesPage,
@@ -22,31 +22,11 @@ type Recipe = {
   id: string; title: string; description: string; category: string;
   time: string; time_minutes: number; difficulty: string; diet: string[];
   servings: number; ingredients: string[]; instructions: string; nutrition?: Nutrition;
+  // Preenchidos pelo generate-recipes a partir do Pexels; null quando não achou.
+  image_url?: string | null;
+  image_photographer?: string | null;
+  image_photographer_url?: string | null;
 };
-
-function RecipeCover({ title, category, ingredients, size = "card" }: { title?: string; category: string; ingredients?: string[]; size?: "card" | "modal" }) {
-  const { emojis, bg } = getRecipeStyle(title, category, ingredients);
-  const chars = Array.from(emojis);
-  const h = size === "modal" ? "h-56" : "aspect-[4/3]";
-  return (
-    <div className={`${h} w-full bg-gradient-to-br ${bg} flex items-center justify-center relative overflow-hidden`}>
-      <div className="absolute inset-0 bg-charcoal/20" />
-      {size === "modal" ? (
-        <div className="relative flex items-center justify-center gap-3 select-none drop-shadow-lg">
-          {chars.map((c, i) => (
-            <span key={i} className={i === 0 ? "text-8xl" : "text-5xl opacity-80"}>{c}</span>
-          ))}
-        </div>
-      ) : (
-        <div className="relative select-none drop-shadow-lg">
-          <span className="text-6xl">{chars[0]}</span>
-          {chars[1] && <span className="absolute -top-2 -right-6 text-3xl opacity-80 rotate-12">{chars[1]}</span>}
-          {chars[2] && <span className="absolute -bottom-2 -left-6 text-3xl opacity-80 -rotate-12">{chars[2]}</span>}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function RecipeModal({ recipe, onClose, onSave, saving, saved }: {
   recipe: Recipe; onClose: () => void; onSave: (r: Recipe) => void; saving: boolean; saved: boolean;
@@ -74,7 +54,7 @@ function RecipeModal({ recipe, onClose, onSave, saving, saved }: {
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
       <div className="relative z-10 bg-charcoal border border-border rounded-t-3xl md:rounded-3xl w-full md:max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="relative rounded-t-3xl overflow-hidden">
-          <RecipeCover title={recipe.title} category={recipe.category} ingredients={recipe.ingredients} size="modal" />
+          <RecipeCover title={recipe.title} category={recipe.category} ingredients={recipe.ingredients} imageUrl={recipe.image_url} className="h-56" emoji="modal" />
           <button onClick={onClose} className="absolute top-4 right-4 h-8 w-8 flex items-center justify-center rounded-full bg-charcoal/80 text-cream hover:bg-charcoal transition text-lg">×</button>
           <div className="absolute bottom-4 left-6 right-6">
             <div className="flex flex-wrap gap-2 mb-2">
@@ -138,6 +118,7 @@ function RecipeModal({ recipe, onClose, onSave, saving, saved }: {
             className={`w-full py-3 rounded-full text-sm font-medium transition ${saved ? "bg-green-500/20 text-green-400 border border-green-500/30 cursor-default" : "bg-blush text-charcoal hover:bg-blush-deep disabled:opacity-60"}`}>
             {saved ? "✓ Salva em minhas receitas!" : saving ? "Salvando…" : "Salvar em minhas receitas"}
           </button>
+          <RecipePhotoCredit imageUrl={recipe.image_url} photographer={recipe.image_photographer} photographerUrl={recipe.image_photographer_url} className="text-center" />
         </div>
       </div>
     </div>
@@ -156,7 +137,7 @@ function RecipeCard({ recipe, pantry, onOpen, onSave, saving, saved }: {
     <article className="group relative bg-charcoal-light rounded-2xl overflow-hidden border border-border hover:border-blush/40 transition-all">
       <div className="cursor-pointer" onClick={() => onOpen(recipe)}>
         <div className="relative overflow-hidden">
-          <RecipeCover title={recipe.title} category={recipe.category} ingredients={recipe.ingredients} size="card" />
+          <RecipeCover title={recipe.title} category={recipe.category} ingredients={recipe.ingredients} imageUrl={recipe.image_url} className="aspect-[4/3]" emoji="card" />
           <div className="absolute inset-0 bg-gradient-to-t from-charcoal/60 to-transparent" />
           {pantry.length > 0 && matchPct > 0 && (
             <div className="absolute top-3 left-3 bg-charcoal/80 backdrop-blur-sm rounded-full px-2.5 py-1 text-xs text-blush">{matchPct}% na despensa</div>
@@ -241,6 +222,9 @@ function RecipesPage() {
         category: recipe.category, time_minutes: recipe.time_minutes, difficulty: recipe.difficulty,
         diet: recipe.diet, ingredients: recipe.ingredients, instructions: recipe.instructions,
         calories_per_serving: recipe.nutrition?.calories ?? null, is_favorite: false,
+        image_url: recipe.image_url ?? null,
+        image_photographer: recipe.image_photographer ?? null,
+        image_photographer_url: recipe.image_photographer_url ?? null,
       });
       if (!error) setSavedIds((prev) => new Set(prev).add(recipe.id));
     } catch (e) { console.error(e); }

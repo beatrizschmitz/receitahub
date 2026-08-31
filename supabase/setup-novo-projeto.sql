@@ -529,5 +529,33 @@ ON CONFLICT (user_id) DO NOTHING;
 
 
 -- ============================================================================
+-- CACHE DE FOTOS DO PEXELS
+-- ============================================================================
+-- Indexado pelo termo de busca, não pela receita: as receitas geradas não são
+-- persistidas, e chavear pelo termo faz duas receitas do mesmo prato reusarem
+-- a foto, mantendo o uso dentro do limite gratuito do Pexels.
+
+CREATE TABLE IF NOT EXISTS public.recipe_images (
+  query text PRIMARY KEY,
+  image_url text,
+  photographer text,
+  photographer_url text,
+  fetched_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.recipe_images ENABLE ROW LEVEL SECURITY;
+
+-- Crédito do fotógrafo viaja junto da receita salva (image_url já existia).
+ALTER TABLE public.user_recipes
+  ADD COLUMN IF NOT EXISTS image_photographer text,
+  ADD COLUMN IF NOT EXISTS image_photographer_url text;
+
+DROP POLICY IF EXISTS "Anyone reads recipe images" ON public.recipe_images;
+CREATE POLICY "Anyone reads recipe images" ON public.recipe_images
+  FOR SELECT TO anon, authenticated
+  USING (true);
+
+
+-- ============================================================================
 -- FIM
 -- ============================================================================

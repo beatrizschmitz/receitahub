@@ -330,10 +330,10 @@ function LandingPage() {
             {Array.from({ length: 6 }).map((_, i) => <div key={i} className="aspect-[4/5] rounded-2xl bg-charcoal-light border border-border animate-pulse" />)}
           </div>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-12">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 auto-rows-fr gap-x-6 gap-y-12">
             {featured.map((r, i) => {
               return (
-                <button key={r.id} onClick={() => setSelectedFeatured(r)} className="group text-left block w-full">
+                <button key={r.id} onClick={() => setSelectedFeatured(r)} className="group flex h-full w-full flex-col text-left">
                   <RecipeCover
                     title={r.title} category={r.category} ingredients={r.ingredients}
                     imageUrl={r.image_url} emoji="solo"
@@ -352,7 +352,7 @@ function LandingPage() {
                   <div className="text-xs uppercase tracking-widest text-blush/90 mb-1.5">
                     {r.category}{r.time_minutes ? ` · ${r.time_minutes} min` : ""}
                   </div>
-                  <h3 className="font-display text-2xl text-cream group-hover:text-blush transition leading-tight">{r.title}</h3>
+                  <h3 className="font-display text-2xl text-cream group-hover:text-blush transition leading-tight line-clamp-2">{r.title}</h3>
                   {r.description && <p className="text-sm text-cream/60 mt-1 line-clamp-2">{r.description}</p>}
                 </button>
               );

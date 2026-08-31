@@ -552,21 +552,21 @@ function MyRecipesPage() {
         {loading ? (
           <div className="text-center py-16 text-cream/50">carregando receitas...</div>
         ) : displayed.length > 0 ? (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 auto-rows-fr gap-6">
             {displayed.map((r) => (
               <article key={r.id} onClick={() => setSelectedRecipe(r)}
-                className="group cursor-pointer bg-charcoal-light rounded-2xl overflow-hidden border border-border hover:border-blush/40 transition-all">
+                className="group flex h-full flex-col cursor-pointer bg-charcoal-light rounded-2xl overflow-hidden border border-border hover:border-blush/40 transition-all">
                 <RecipeCover title={r.title} category={r.category} ingredients={r.ingredients} imageUrl={r.image_url} className="aspect-[4/3]" emoji="card" />
-                <div className="p-5">
+                <div className="flex flex-1 flex-col p-5">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="flex-1">
                       {r.category && <div className="text-xs uppercase tracking-widest text-blush/90 mb-2">{r.category}{r.time_minutes ? ` · ${r.time_minutes} min` : ""}</div>}
-                      <h3 className="font-display text-2xl text-cream leading-tight mb-2 group-hover:text-blush transition">{r.title}</h3>
+                      <h3 className="font-display text-2xl text-cream leading-tight mb-2 line-clamp-2 group-hover:text-blush transition">{r.title}</h3>
                       {r.description && <p className="text-sm text-cream/60 line-clamp-2">{r.description}</p>}
                     </div>
                     {r.is_favorite && <span className="text-blush text-lg flex-shrink-0">★</span>}
                   </div>
-                  <div className="flex items-center gap-2 flex-wrap mt-3 pt-3 border-t border-border/50">
+                  <div className="flex items-center gap-2 flex-wrap mt-auto pt-3 border-t border-border/50">
                     {r.calories_per_serving && (
                       <span className="text-[11px] bg-blush/15 text-blush px-2 py-1 rounded-full">≈ {r.calories_per_serving} kcal</span>
                     )}

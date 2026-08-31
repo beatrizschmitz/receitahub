@@ -134,8 +134,8 @@ function RecipeCard({ recipe, pantry, onOpen, onSave, saving, saved }: {
     : 0;
 
   return (
-    <article className="group relative bg-charcoal-light rounded-2xl overflow-hidden border border-border hover:border-blush/40 transition-all">
-      <div className="cursor-pointer" onClick={() => onOpen(recipe)}>
+    <article className="group relative flex h-full flex-col bg-charcoal-light rounded-2xl overflow-hidden border border-border hover:border-blush/40 transition-all">
+      <div className="flex flex-1 flex-col cursor-pointer" onClick={() => onOpen(recipe)}>
         <div className="relative overflow-hidden">
           <RecipeCover title={recipe.title} category={recipe.category} ingredients={recipe.ingredients} imageUrl={recipe.image_url} className="aspect-[4/3]" emoji="card" />
           <div className="absolute inset-0 bg-gradient-to-t from-charcoal/60 to-transparent" />
@@ -148,9 +148,9 @@ function RecipeCard({ recipe, pantry, onOpen, onSave, saving, saved }: {
             ))}
           </div>
         </div>
-        <div className="p-5 pr-14">
+        <div className="flex-1 p-5 pr-14">
           <div className="text-xs uppercase tracking-widest text-blush/80 mb-1">{recipe.category} · {recipe.time}</div>
-          <h3 className="font-display text-xl text-cream leading-tight mb-2 group-hover:text-blush transition-colors">{recipe.title}</h3>
+          <h3 className="font-display text-xl text-cream leading-tight mb-2 line-clamp-2 group-hover:text-blush transition-colors">{recipe.title}</h3>
           <p className="text-sm text-cream/60 line-clamp-2">{recipe.description}</p>
         </div>
       </div>
@@ -302,7 +302,7 @@ function RecipesPage() {
             {Array.from({ length: 6 }).map((_, i) => <div key={i} className="aspect-[4/3] rounded-2xl bg-charcoal-light border border-border animate-pulse" />)}
           </div>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 auto-rows-fr gap-6">
             {recipes.map((r) => (
               <RecipeCard key={r.id} recipe={r} pantry={pantry} onOpen={setSelectedRecipe}
                 onSave={handleSave} saving={savingId === r.id} saved={savedIds.has(r.id)} />

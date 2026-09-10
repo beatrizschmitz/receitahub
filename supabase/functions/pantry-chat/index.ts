@@ -15,6 +15,37 @@ const AI_URL =
   "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 const AI_MODEL = Deno.env.get("AI_MODEL") ?? "gemini-2.5-flash";
 
+// Fallback de chave de IA — duplicado em generate-recipes/index.ts (mesma
+// lógica, só muda o nome da função no log). Ver nota do painel no topo do
+// arquivo: cada function é auto-contida, então isso não vira um _shared/.
+// Quando a chave principal esgota cota (429/402/403), tenta a chave reserva
+// antes de desistir. AI_API_KEY_BACKUP é opcional — sem ela, só a principal roda.
+async function callAI(
+  payload: unknown,
+  apiKey: string,
+  backupKey: string,
+): Promise<Response> {
+  const body = JSON.stringify(payload);
+  const primary = await fetch(AI_URL, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body,
+  });
+  if (primary.ok || !backupKey || ![429, 402, 403].includes(primary.status)) {
+    console.log(`pantry-chat: chave principal usada (status ${primary.status})`);
+    return primary;
+  }
+  console.warn(
+    `pantry-chat: chave principal esgotada (status ${primary.status}), tentando chave backup`,
+  );
+  const backup = await fetch(AI_URL, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${backupKey}`, "Content-Type": "application/json" },
+    body,
+  });
+  console.log(`pantry-chat: chave backup usada (status ${backup.status})`);
+  return backup;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -25,6 +56,7 @@ serve(async (req) => {
     const { messages, pantry } = await req.json();
     const AI_API_KEY = Deno.env.get("AI_API_KEY");
     if (!AI_API_KEY) throw new Error("AI_API_KEY não configurada");
+    const AI_API_KEY_BACKUP = Deno.env.get("AI_API_KEY_BACKUP") ?? "";
 
     // Validação server-side do limite diário do plano gratuito
     const FREE_CHAT_DAILY_LIMIT = 10;
@@ -92,30 +124,27 @@ ${pantryList}
 Regras:
 - Sugira receitas que possam ser feitas COM OS INGREDIENTES DA DESPENSA acima sempre que possível.
 - Se faltar 1 ou 2 ingredientes essenciais, mencione claramente o que precisa comprar.
-- Seja prático: dê o nome da receita, ingredientes principais, tempo aproximado e um modo de preparo curto em passos.
 - Se a despensa estiver vazia, peça gentilmente para o usuário cadastrar itens em "Minha Despensa".
-- Mantenha respostas concisas (no máximo ~250 palavras), use markdown leve (negrito, listas).
-- Sempre que sugerir uma receita completa, inclua duas linhas:
-  - "**Calorias:** ~320 kcal/porção"
-  - "**Custo:** ~R$ 18 em casa vs ~R$ 45 no delivery" (estimativa em reais; delivery costuma ser 2-3x o caseiro).`;
+- Mantenha respostas concisas (no máximo ~300 palavras), use markdown leve (negrito, listas).
+- Sempre que sugerir uma receita completa (não uma ideia rápida), use exatamente esta estrutura, nesta ordem, e NUNCA omita a lista de ingredientes:
+  1. Nome da receita em negrito, seguido de tempo aproximado e dificuldade em uma linha.
+  2. Uma linha "**Ingredientes**" seguida de uma lista com marcadores, um ingrediente por linha, cada um com quantidade (ex.: "- 2 xícaras de arroz", "- 1 cebola picada").
+  3. Uma linha "**Modo de preparo**" seguida do passo a passo numerado.
+  4. Duas linhas finais:
+     - "**Calorias:** ~320 kcal/porção"
+     - "**Custo:** ~R$ 18 em casa vs ~R$ 45 no delivery" (estimativa em reais; delivery costuma ser 2-3x o caseiro).`;
 
-    const response = await fetch(
-      AI_URL,
+    const response = await callAI(
       {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${AI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: AI_MODEL,
-          stream: true,
-          messages: [
-            { role: "system", content: systemPrompt },
-            ...(Array.isArray(messages) ? messages : []),
-          ],
-        }),
-      }
+        model: AI_MODEL,
+        stream: true,
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...(Array.isArray(messages) ? messages : []),
+        ],
+      },
+      AI_API_KEY,
+      AI_API_KEY_BACKUP,
     );
 
     if (!response.ok) {

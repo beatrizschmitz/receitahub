@@ -52,10 +52,11 @@ const FALLBACK_FEATURED: FeaturedRecipe[] = catalogRecipes.slice(0, 5).map((r) =
 }));
 
 // Cache dos destaques. Sem ele a home dispara uma geração por IA a cada visita
-// de cada visitante, o que queima a cota gratuita em pouco tempo. 6 horas é o
-// suficiente para a seção parecer viva sem pagar por isso.
+// de cada visitante, o que queima a cota gratuita em pouco tempo. 7 dias faz a
+// "receita da semana" ser literal: as mesmas receitas ficam a semana toda,
+// até o próximo ciclo ou até alguém clicar em "Gerar novas".
 const FEATURED_CACHE_KEY = "receitahub:featured";
-const FEATURED_TTL_MS = 6 * 60 * 60 * 1000;
+const FEATURED_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 type FeaturedCache = { at: number; recipes: FeaturedRecipe[] };
 
@@ -382,7 +383,7 @@ function LandingPage() {
             </h2>
           </div>
           <div className="flex items-center gap-4 flex-wrap">
-            {/* Ação explícita: ignora o cache de 6h e chama a IA de novo */}
+            {/* Ação explícita: ignora o cache semanal e chama a IA de novo */}
             <button
               onClick={() => void loadFeatured(true)}
               disabled={loadingFeatured}

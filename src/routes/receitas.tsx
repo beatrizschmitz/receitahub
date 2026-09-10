@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Clock, Gauge, Search, Utensils } from "lucide-react";
 import { RecipeCover, RecipePhotoCredit } from "@/components/RecipeCover";
+import { PortionSlider } from "@/components/PortionSlider";
 
 export const Route = createFileRoute("/receitas")({
   component: RecipesPage,
@@ -108,12 +109,11 @@ function RecipeModal({ recipe, onClose, onSave, saving, saved }: {
             {recipe.description}
           </p>
           <div className="bg-charcoal-light border border-border rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-cream/70">Porções</span>
-              <span className="text-sm font-medium text-cream">{servings}</span>
+              <span className="text-base font-display text-blush">{servings}</span>
             </div>
-            <input type="range" min={1} max={12} step={1} value={servings} onChange={(e) => setServings(Number(e.target.value))} className="w-full accent-[#C97B84]" />
-            <div className="flex justify-between text-[10px] text-cream/40 mt-1"><span>1</span><span>6</span><span>12</span></div>
+            <PortionSlider value={servings} onChange={setServings} />
           </div>
           <div>
             <h3 className="text-sm font-medium text-cream/80 mb-3">Ingredientes</h3>

@@ -189,6 +189,7 @@ async function resolveRecipeImages(
 // ─── fim da cópia ────────────────────────────────────────────────────────────
 
 const AI_API_KEY = Deno.env.get("AI_API_KEY") ?? "";
+const AI_API_KEY_BACKUP = Deno.env.get("AI_API_KEY_BACKUP") ?? "";
 // Gateway de IA compatível com a API OpenAI (/v1/chat/completions).
 // Trocar de provedor é só mudar estas variáveis de ambiente — nenhum código muda.
 // Padrão: Google AI Studio, que mantém os mesmos modelos Gemini usados antes.
@@ -196,6 +197,34 @@ const AI_URL =
   Deno.env.get("AI_GATEWAY_URL") ??
   "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 const AI_MODEL = Deno.env.get("AI_MODEL") ?? "gemini-2.5-flash";
+
+// Fallback de chave de IA — duplicado em pantry-chat/index.ts (mesma lógica,
+// só muda o nome da função no log). Cada edge function é auto-contida (ver
+// nota do painel no topo do arquivo), então isso não vira um _shared/.
+// Quando a chave principal esgota cota (429/402/403), tenta a chave reserva
+// antes de desistir. AI_API_KEY_BACKUP é opcional — sem ela, só a principal roda.
+async function callAI(payload: unknown): Promise<Response> {
+  const body = JSON.stringify(payload);
+  const primary = await fetch(AI_URL, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${AI_API_KEY}`, "Content-Type": "application/json" },
+    body,
+  });
+  if (primary.ok || !AI_API_KEY_BACKUP || ![429, 402, 403].includes(primary.status)) {
+    console.log(`generate-recipes: chave principal usada (status ${primary.status})`);
+    return primary;
+  }
+  console.warn(
+    `generate-recipes: chave principal esgotada (status ${primary.status}), tentando chave backup`,
+  );
+  const backup = await fetch(AI_URL, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${AI_API_KEY_BACKUP}`, "Content-Type": "application/json" },
+    body,
+  });
+  console.log(`generate-recipes: chave backup usada (status ${backup.status})`);
+  return backup;
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -304,21 +333,15 @@ Deno.serve(async (req) => {
     const systemPrompt = "Você é um chef brasileiro especialista e criativo. Sempre varia as sugestões e chama a função return_recipes exatamente uma vez. Responda em português do Brasil, com uma exceção: o campo image_query deve ser em INGLÊS, com 2 a 4 palavras, descrevendo o prato do jeito que um banco de fotos internacional encontraria (ex.: escondidinho de carne seca -> \"shepherds pie casserole\"; temaki -> \"sushi hand roll\"; moqueca -> \"seafood stew bowl\"). Prefira o tipo de prato ao nome regional. O modo de preparo deve ser uma única string com até 5 passos numerados separados por quebras de linha.";
     const userPrompt = `Gere exatamente 6 receitas ${categoryPart}. ${dietPart} ${ingredientsPart} ${searchPart} ${variationPart}`;
 
-    const aiRes = await fetch(AI_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${AI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: AI_MODEL,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 1.1,
-        max_tokens: 12000,
-        tools: [{
+    const aiRes = await callAI({
+      model: AI_MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 1.1,
+      max_tokens: 12000,
+      tools: [{
           type: "function",
           function: {
             name: "return_recipes",
@@ -360,8 +383,7 @@ Deno.serve(async (req) => {
             },
           },
         }],
-        tool_choice: { type: "function", function: { name: "return_recipes" } },
-      }),
+      tool_choice: { type: "function", function: { name: "return_recipes" } },
     });
 
     if (!aiRes.ok) {

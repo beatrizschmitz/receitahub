@@ -54,6 +54,69 @@ type Item = {
   expires_at: string | null;
 };
 
+// Associações nome -> categoria mais comuns na despensa brasileira. É uma
+// sugestão local (sem IA): o campo continua editável e o primeiro grupo cuja
+// palavra-chave aparece no nome digitado vence.
+const CATEGORY_KEYWORDS: Array<[string[], string]> = [
+  [["arroz", "aveia", "granola", "quinoa", "cevada", "milho de pipoca"], "Cereais"],
+  [["feijao", "lentilha", "grao de bico", "ervilha seca", "soja em grao"], "Grãos"],
+  [["macarrao", "espaguete", "lasanha", "nhoque", "massa", "talharim", "parafuso"], "Massas"],
+  [
+    [
+      "banana", "maca", "laranja", "uva", "manga", "abacaxi", "morango", "limao",
+      "mamao", "melancia", "pera", "abacate", "kiwi", "pessego", "ameixa", "melao",
+      "tangerina", "goiaba", "coco",
+    ],
+    "Frutas",
+  ],
+  [
+    [
+      "tomate", "batata", "cebola", "alho", "cenoura", "abobrinha", "pepino",
+      "pimentao", "beterraba", "abobora", "chuchu", "mandioca", "batata doce",
+      "milho verde", "vagem",
+    ],
+    "Vegetais",
+  ],
+  [["alface", "couve", "espinafre", "rucula", "brocolis", "repolho", "agriao", "acelga"], "Verduras"],
+  [
+    [
+      "frango", "carne moida", "carne bovina", "file", "bife", "costela",
+      "picanha", "linguica", "bacon", "peru", "carne suina", "lombo", "presunto",
+    ],
+    "Carnes",
+  ],
+  [["peixe", "salmao", "tilapia", "camarao", "atum fresco", "bacalhau", "lula", "polvo", "sardinha fresca"], "Peixes e Frutos do Mar"],
+  [["leite", "queijo", "iogurte", "manteiga", "requeijao", "creme de leite", "nata"], "Laticínios"],
+  [["ovo"], "Ovos"],
+  [["pao", "baguete", "torrada", "wrap", "tortilha"], "Pães"],
+  [["manjericao", "salsa", "cebolinha", "coentro", "oregano", "alecrim", "hortela", "tomilho", "louro"], "Ervas"],
+  [["sal", "pimenta do reino", "curcuma", "cominho", "canela", "paprica", "curry", "colorau", "noz moscada", "tempero"], "Temperos"],
+  [["azeite", "oleo de soja", "oleo de girassol", "oleo de coco", "oleo"], "Óleos"],
+  [["ketchup", "maionese", "mostarda", "molho de tomate", "shoyu", "molho barbecue", "vinagre", "molho"], "Molhos e Condimentos"],
+  [["enlatado", "lata de", "milho em lata", "ervilha em lata", "sardinha em lata"], "Enlatados"],
+  [["congelado", "sorvete", "nuggets", "polpa de fruta"], "Congelados"],
+  [["acucar", "chocolate", "doce", "mel", "achocolatado", "geleia", "bolo pronto"], "Doces e Açúcares"],
+  [["agua", "suco", "refrigerante", "cafe", "cha", "cerveja", "vinho", "refresco"], "Bebidas"],
+  [["biscoito", "salgadinho", "pipoca", "amendoim", "castanha", "bolacha", "chips"], "Snacks"],
+  [["whey", "tofu", "seitan", "proteina"], "Proteínas"],
+];
+
+function normalizeItemName(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function suggestCategory(name: string): string | null {
+  const normalized = normalizeItemName(name);
+  if (!normalized.trim()) return null;
+  for (const [keywords, category] of CATEGORY_KEYWORDS) {
+    if (keywords.some((k) => normalized.includes(k))) return category;
+  }
+  return null;
+}
+
 function daysBetween(fromISO: string, toISO: string) {
   const a = new Date(fromISO + "T00:00:00");
   const b = new Date(toISO + "T00:00:00");
@@ -91,6 +154,19 @@ function PantryPage() {
     purchased_at: todayISO(),
     expires_at: "",
   });
+  // Enquanto true, a categoria ainda não foi escolhida à mão e pode ser
+  // atualizada pela sugestão automática. Vira false assim que o usuário
+  // interage com o <select>, e a sugestão para de sobrescrever a escolha dele.
+  const [categoryAuto, setCategoryAuto] = useState(true);
+  const [quantityError, setQuantityError] = useState(false);
+
+  const handleNameChange = (name: string) => {
+    setNewItem((prev) => {
+      if (!categoryAuto) return { ...prev, name };
+      const suggested = suggestCategory(name);
+      return suggested ? { ...prev, name, category: suggested } : { ...prev, name };
+    });
+  };
 
   useEffect(() => {
     if (!authLoading && !session) {
@@ -146,6 +222,11 @@ function PantryPage() {
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newItem.name.trim()) return;
+    if (!newItem.quantity.trim()) {
+      setQuantityError(true);
+      return;
+    }
+    setQuantityError(false);
 
     // Calcula expires_in (dias até vencer) se houver expires_at
     const expiresIn = newItem.expires_at
@@ -158,7 +239,7 @@ function PantryPage() {
         user_id: session.user.id,
         name: newItem.name.trim(),
         category: newItem.category,
-        quantity: newItem.quantity || null,
+        quantity: newItem.quantity.trim(),
         expires_in: expiresIn,
         purchased_at: newItem.purchased_at || null,
         expires_at: newItem.expires_at || null,
@@ -174,6 +255,7 @@ function PantryPage() {
         purchased_at: todayISO(),
         expires_at: "",
       });
+      setCategoryAuto(true);
       setShowForm(false);
     }
   };
@@ -305,40 +387,69 @@ function PantryPage() {
         {showForm && (
           <form
             onSubmit={handleAdd}
-            className="mt-8 bg-charcoal-light border border-blush/30 rounded-2xl p-6 grid md:grid-cols-6 gap-4"
+            className="mt-8 bg-charcoal-light border border-blush/30 rounded-2xl p-6 grid md:grid-cols-6 gap-4 items-start"
           >
-            <input
-              required
-              value={newItem.name}
-              onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-              placeholder="Ingrediente"
-              maxLength={80}
-              className="md:col-span-2 bg-charcoal border border-border rounded-xl px-4 py-3 text-cream placeholder:text-cream/40 focus:outline-none focus:border-blush/50"
-            />
-            <select
-              required
-              value={newItem.category}
-              onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
-              className={`bg-charcoal border border-border rounded-xl px-4 py-3 focus:outline-none focus:border-blush/50 ${
-                newItem.category ? "text-cream" : "text-cream/40"
-              }`}
-            >
-              <option value="" disabled>
-                Categoria
-              </option>
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c} className="text-cream">
-                  {c}
+            {/* Todo campo fica dentro de um label com legenda + input, mesmo quando a
+                legenda é invisível (nome/categoria/quantidade). É o que garante que os
+                cinco inputs desta linha — incluindo os de data — tenham exatamente a
+                mesma altura e fiquem alinhados: sem a legenda reservando o mesmo espaço,
+                "Comprado em"/"Validade" empurram só os dois inputs de data para baixo. */}
+            <label className="md:col-span-2 flex flex-col gap-1">
+              <span className="invisible text-[11px] px-1">Ingrediente</span>
+              <input
+                required
+                value={newItem.name}
+                onChange={(e) => handleNameChange(e.target.value)}
+                placeholder="Ingrediente"
+                maxLength={80}
+                className="h-12 bg-charcoal border border-border rounded-xl px-4 text-cream placeholder:text-cream/40 focus:outline-none focus:border-blush/50"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="invisible text-[11px] px-1">Categoria</span>
+              <select
+                required
+                value={newItem.category}
+                onChange={(e) => {
+                  setCategoryAuto(false);
+                  setNewItem({ ...newItem, category: e.target.value });
+                }}
+                className={`h-12 bg-charcoal border border-border rounded-xl px-4 focus:outline-none focus:border-blush/50 ${
+                  newItem.category ? "text-cream" : "text-cream/40"
+                }`}
+              >
+                <option value="" disabled>
+                  Categoria
                 </option>
-              ))}
-            </select>
-            <input
-              value={newItem.quantity}
-              onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
-              placeholder="Quantidade (ex: 2kg)"
-              maxLength={40}
-              className="bg-charcoal border border-border rounded-xl px-4 py-3 text-cream placeholder:text-cream/40 focus:outline-none focus:border-blush/50"
-            />
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c} className="text-cream">
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="invisible text-[11px] px-1">Quantidade</span>
+              <input
+                required
+                value={newItem.quantity}
+                onChange={(e) => {
+                  setQuantityError(false);
+                  setNewItem({ ...newItem, quantity: e.target.value });
+                }}
+                placeholder="Quantidade (ex: 2kg)"
+                maxLength={40}
+                aria-invalid={quantityError}
+                className={`h-12 bg-charcoal border rounded-xl px-4 text-cream placeholder:text-cream/40 focus:outline-none ${
+                  quantityError
+                    ? "border-red-500 focus:border-red-500"
+                    : "border-border focus:border-blush/50"
+                }`}
+              />
+              {quantityError && (
+                <span className="text-[11px] text-red-400 px-1">Informe a quantidade.</span>
+              )}
+            </label>
             <label className="flex flex-col gap-1">
               <span className="text-[11px] text-cream/50 px-1">Comprado em</span>
               <input
@@ -346,7 +457,7 @@ function PantryPage() {
                 value={newItem.purchased_at}
                 max={todayISO()}
                 onChange={(e) => setNewItem({ ...newItem, purchased_at: e.target.value })}
-                className="bg-charcoal border border-border rounded-xl px-4 py-3 text-cream focus:outline-none focus:border-blush/50"
+                className="h-12 bg-charcoal border border-border rounded-xl px-4 text-cream focus:outline-none focus:border-blush/50"
               />
             </label>
             <label className="flex flex-col gap-1">
@@ -356,7 +467,7 @@ function PantryPage() {
                 value={newItem.expires_at}
                 min={newItem.purchased_at || todayISO()}
                 onChange={(e) => setNewItem({ ...newItem, expires_at: e.target.value })}
-                className="bg-charcoal border border-border rounded-xl px-4 py-3 text-cream focus:outline-none focus:border-blush/50"
+                className="h-12 bg-charcoal border border-border rounded-xl px-4 text-cream focus:outline-none focus:border-blush/50"
               />
             </label>
             <button

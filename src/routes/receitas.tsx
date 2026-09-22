@@ -52,6 +52,44 @@ function describeRecipeError(fnError: unknown, payloadError?: string): string {
   return "Não conseguimos gerar receitas agora. Tente novamente em instantes.";
 }
 
+// Cache local (sessionStorage) de leva de receitas por combinação de filtros.
+// Cada geração custa uma chamada cara de IA (até 6 receitas completas), e sem
+// isso toda revisita à página — ou toda troca de categoria/dieta, mesmo
+// voltando pra uma combinação já vista — disparava uma geração nova do zero.
+// É isso que esgota a cota da chave de IA rápido demais. "Buscar" e "Gerar
+// novas" continuam sempre buscando na hora, porque international é o objetivo
+// deles; só a geração automática (montagem da página / troca de filtro) passa
+// a reaproveitar o que já foi gerado nesta sessão.
+const RECIPES_CACHE_KEY = "receitahub:recipes-cache:v1";
+const RECIPES_CACHE_MAX_ENTRIES = 12;
+const RECIPES_CACHE_TTL_MS = 60 * 60 * 1000;
+
+type RecipesCacheEntry = { recipes: Recipe[]; seed: string; ts: number };
+
+function recipesCacheKey(category: string, diets: string[], search: string) {
+  return `${category}|${[...diets].sort().join(",")}|${search.trim().toLowerCase()}`;
+}
+
+function readRecipesCache(): Record<string, RecipesCacheEntry> {
+  try {
+    const raw = sessionStorage.getItem(RECIPES_CACHE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeRecipesCache(cache: Record<string, RecipesCacheEntry>) {
+  try {
+    const entries = Object.entries(cache)
+      .sort((a, b) => b[1].ts - a[1].ts)
+      .slice(0, RECIPES_CACHE_MAX_ENTRIES);
+    sessionStorage.setItem(RECIPES_CACHE_KEY, JSON.stringify(Object.fromEntries(entries)));
+  } catch {
+    // sessionStorage indisponível (modo privado, quota cheia etc.) — segue sem cache
+  }
+}
+
 function RecipeModal({ recipe, onClose, onSave, saving, saved }: {
   recipe: Recipe; onClose: () => void; onSave: (r: Recipe) => void; saving: boolean; saved: boolean;
 }) {
@@ -237,7 +275,21 @@ function RecipesPage() {
     })();
   }, [session]);
 
-  async function loadRecipes(category: string, diets: string[], searchTerm = "") {
+  async function loadRecipes(category: string, diets: string[], searchTerm = "", forceFresh = false) {
+    const cacheKey = recipesCacheKey(category, diets, searchTerm);
+
+    if (!forceFresh) {
+      const hit = readRecipesCache()[cacheKey];
+      if (hit && Date.now() - hit.ts < RECIPES_CACHE_TTL_MS) {
+        sessionSeed.current = hit.seed;
+        setRecipes(hit.recipes);
+        setError(null);
+        return;
+      }
+    }
+
+    if (forceFresh) sessionSeed.current = Math.random().toString(36).slice(2);
+
     setLoading(true); setError(null);
     try {
       const { data, error: fnError } = await supabase.functions.invoke("generate-recipes", {
@@ -249,7 +301,13 @@ function RecipesPage() {
         return;
       }
       // Lista vazia não é erro: é o estado vazio da busca, tratado na renderização.
-      setRecipes(data?.recipes ?? []);
+      const list: Recipe[] = data?.recipes ?? [];
+      setRecipes(list);
+      if (list.length > 0) {
+        const cache = readRecipesCache();
+        cache[cacheKey] = { recipes: list, seed: sessionSeed.current, ts: Date.now() };
+        writeRecipesCache(cache);
+      }
     } catch (e) {
       setRecipes([]);
       setError(describeRecipeError(e));
@@ -260,8 +318,7 @@ function RecipesPage() {
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
-    sessionSeed.current = Math.random().toString(36).slice(2);
-    loadRecipes(activeCategory, activeDiets, search);
+    loadRecipes(activeCategory, activeDiets, search, true);
   }
 
   async function handleSave(recipe: Recipe) {
@@ -352,7 +409,7 @@ function RecipesPage() {
                 <button key={f} onClick={() => toggleDiet(f)}
                   className={`px-4 py-2 rounded-full text-sm first-letter:uppercase transition border ${activeDiets.includes(f) ? "bg-blush/20 text-blush border-blush/50" : "bg-transparent text-cream/60 border-border hover:text-blush hover:border-blush/40"}`}>{f}</button>
               ))}
-              <button onClick={() => { sessionSeed.current = Math.random().toString(36).slice(2); loadRecipes(activeCategory, activeDiets, search); }} disabled={loading}
+              <button onClick={() => loadRecipes(activeCategory, activeDiets, search, true)} disabled={loading}
                 title="Sugere outras receitas aleatórias, mantendo os filtros atuais"
                 className="ml-auto px-4 py-2 rounded-full text-sm border border-blush/40 text-blush hover:bg-blush hover:text-charcoal transition disabled:opacity-50">
                 {loading ? "Gerando…" : "↻ Gerar novas"}

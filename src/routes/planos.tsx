@@ -114,11 +114,16 @@ function PlansPage() {
             com o Chef Despensa, fotografar sua geladeira ou receber um cardápio sob medida.
           </p>
           {session && !loading && (
-            <p className="text-sm text-cream/50 mt-4">
-              Plano atual: <span className="text-blush">{PLAN_LABEL[tier]}</span>
-              {currentPeriodEnd && !isCanceled &&
-                ` — renova em ${new Date(currentPeriodEnd).toLocaleDateString("pt-BR")}`}
-            </p>
+            <div className="inline-flex flex-wrap items-center gap-2 rounded-full border border-blush/40 bg-blush/10 px-4 py-2 mt-4">
+              <span className="h-1.5 w-1.5 rounded-full bg-blush" />
+              <span className="text-sm text-cream/60">Plano atual:</span>
+              <span className="text-sm font-medium text-blush">{PLAN_LABEL[tier]}</span>
+              {currentPeriodEnd && !isCanceled && (
+                <span className="text-sm text-cream/45">
+                  — renova em {new Date(currentPeriodEnd).toLocaleDateString("pt-BR")}
+                </span>
+              )}
+            </div>
           )}
 
           {session && !loading && lockedByCancellation && currentPeriodEnd && (
@@ -154,15 +159,24 @@ function PlansPage() {
               <div
                 key={plan.tier}
                 className={`relative flex flex-col rounded-2xl border p-7 transition ${
-                  plan.highlight
-                    ? "border-blush/60 bg-blush/[0.06]"
-                    : "border-border bg-cream/[0.02]"
+                  isCurrent
+                    ? "border-blush ring-2 ring-blush/40 bg-blush/[0.09] shadow-lg shadow-blush/10"
+                    : plan.highlight
+                      ? "border-blush/60 bg-blush/[0.06]"
+                      : "border-border bg-cream/[0.02]"
                 }`}
               >
-                {plan.highlight && (
-                  <span className="absolute -top-3 left-7 rounded-full bg-blush px-3 py-1 text-[11px] font-medium text-charcoal">
-                    Mais escolhido
+                {isCurrent ? (
+                  <span className="absolute -top-3 left-7 inline-flex items-center gap-1 rounded-full bg-blush px-3 py-1 text-[11px] font-medium text-charcoal">
+                    <Check size={12} strokeWidth={2.5} />
+                    Seu plano atual
                   </span>
+                ) : (
+                  plan.highlight && (
+                    <span className="absolute -top-3 left-7 rounded-full bg-blush px-3 py-1 text-[11px] font-medium text-charcoal">
+                      Mais escolhido
+                    </span>
+                  )
                 )}
 
                 {(() => {

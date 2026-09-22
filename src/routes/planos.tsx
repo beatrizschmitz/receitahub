@@ -217,9 +217,11 @@ function PlansPage() {
                       : undefined
                   }
                   className={`mt-8 rounded-full py-3 text-sm transition disabled:opacity-60 ${
-                    plan.highlight
-                      ? "bg-blush text-charcoal hover:bg-blush-deep"
-                      : "border border-border text-cream/80 hover:border-blush hover:text-blush"
+                    isCurrent || isLocked
+                      ? "border border-border text-cream/40 cursor-not-allowed"
+                      : plan.highlight
+                        ? "bg-blush text-charcoal hover:bg-blush-deep"
+                        : "border border-border text-cream/80 hover:border-blush hover:text-blush"
                   }`}
                 >
                   {isCurrent

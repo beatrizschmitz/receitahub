@@ -18,8 +18,11 @@ const AI_MODEL = Deno.env.get("AI_MODEL") ?? "gemini-2.5-flash";
 // Fallback de chave de IA — duplicado em generate-recipes/index.ts (mesma
 // lógica, só muda o nome da função no log). Ver nota do painel no topo do
 // arquivo: cada function é auto-contida, então isso não vira um _shared/.
-// Quando a chave principal esgota cota (429/402/403), tenta a chave reserva
-// antes de desistir. AI_API_KEY_BACKUP é opcional — sem ela, só a principal roda.
+// Quando a chave principal esgota cota (429/402/403) OU o modelo está
+// temporariamente sobrecarregado do lado do provedor (503), tenta a chave
+// reserva antes de desistir. AI_API_KEY_BACKUP é opcional — sem ela, só a
+// principal roda.
+const RETRYABLE_STATUS = [429, 402, 403, 503];
 async function callAI(
   payload: unknown,
   apiKey: string,
@@ -31,12 +34,12 @@ async function callAI(
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body,
   });
-  if (primary.ok || !backupKey || ![429, 402, 403].includes(primary.status)) {
+  if (primary.ok || !backupKey || !RETRYABLE_STATUS.includes(primary.status)) {
     console.log(`pantry-chat: chave principal usada (status ${primary.status})`);
     return primary;
   }
   console.warn(
-    `pantry-chat: chave principal esgotada (status ${primary.status}), tentando chave backup`,
+    `pantry-chat: chave principal esgotada/indisponível (status ${primary.status}), tentando chave backup`,
   );
   const backup = await fetch(AI_URL, {
     method: "POST",
@@ -158,6 +161,12 @@ Regras:
         return new Response(
           JSON.stringify({ error: "Créditos de IA esgotados. Adicione créditos no workspace." }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (response.status === 503) {
+        return new Response(
+          JSON.stringify({ error: "O chef está temporariamente sobrecarregado. Tente novamente em alguns instantes." }),
+          { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       const t = await response.text();

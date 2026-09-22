@@ -201,8 +201,11 @@ const AI_MODEL = Deno.env.get("AI_MODEL") ?? "gemini-2.5-flash";
 // Fallback de chave de IA — duplicado em pantry-chat/index.ts (mesma lógica,
 // só muda o nome da função no log). Cada edge function é auto-contida (ver
 // nota do painel no topo do arquivo), então isso não vira um _shared/.
-// Quando a chave principal esgota cota (429/402/403), tenta a chave reserva
-// antes de desistir. AI_API_KEY_BACKUP é opcional — sem ela, só a principal roda.
+// Quando a chave principal esgota cota (429/402/403) OU o modelo está
+// temporariamente sobrecarregado do lado do provedor (503), tenta a chave
+// reserva antes de desistir. AI_API_KEY_BACKUP é opcional — sem ela, só a
+// principal roda.
+const RETRYABLE_STATUS = [429, 402, 403, 503];
 async function callAI(payload: unknown): Promise<Response> {
   const body = JSON.stringify(payload);
   const primary = await fetch(AI_URL, {
@@ -210,12 +213,12 @@ async function callAI(payload: unknown): Promise<Response> {
     headers: { Authorization: `Bearer ${AI_API_KEY}`, "Content-Type": "application/json" },
     body,
   });
-  if (primary.ok || !AI_API_KEY_BACKUP || ![429, 402, 403].includes(primary.status)) {
+  if (primary.ok || !AI_API_KEY_BACKUP || !RETRYABLE_STATUS.includes(primary.status)) {
     console.log(`generate-recipes: chave principal usada (status ${primary.status})`);
     return primary;
   }
   console.warn(
-    `generate-recipes: chave principal esgotada (status ${primary.status}), tentando chave backup`,
+    `generate-recipes: chave principal esgotada/indisponível (status ${primary.status}), tentando chave backup`,
   );
   const backup = await fetch(AI_URL, {
     method: "POST",
@@ -392,6 +395,9 @@ Deno.serve(async (req) => {
       }
       if (aiRes.status === 402) {
         return new Response(JSON.stringify({ error: "Créditos de IA esgotados. Adicione créditos no workspace Lovable." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      if (aiRes.status === 503) {
+        return new Response(JSON.stringify({ error: "A IA está temporariamente sobrecarregada. Tente novamente em alguns instantes." }), { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       throw new Error(await aiRes.text());
     }

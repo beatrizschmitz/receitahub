@@ -40,7 +40,7 @@ function describeRecipeError(fnError: unknown, payloadError?: string): string {
     fnError instanceof Error ? fnError.message : ""
   }`;
 
-  if (status === 429 || /limite de requisi|rate limit|too many requests/i.test(raw)) {
+  if (status === 429 || status === 503 || /limite de requisi|rate limit|too many requests|sobrecarregad/i.test(raw)) {
     return "Estamos com alta demanda no momento. Tente novamente em alguns minutos.";
   }
   if (status === 402 || /cr[ée]dito|quota|insufficient/i.test(raw)) {

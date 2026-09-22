@@ -576,6 +576,10 @@ export function PantryChat() {
         if (resp.status === 429)
           toast.error(payload?.error ?? "Muitas requisições. Aguarde um momento.");
         else if (resp.status === 402) toast.error("Créditos de IA esgotados.");
+        else if (resp.status === 503)
+          toast.error(
+            payload?.error ?? "O chef está temporariamente sobrecarregado. Tente novamente em alguns instantes.",
+          );
         else toast.error("Erro ao falar com o chef.");
         setLoading(false);
         return;

@@ -177,46 +177,18 @@ function LandingPage() {
     })();
   }, [session]);
 
-  // Receitas em destaque, em cascata: salvas do usuário -> cache -> IA -> catálogo.
+  // Receitas em destaque, em cascata: cache semanal -> IA -> catálogo.
+  // Sempre as mesmas sugestões pra todo mundo (logado ou não) — não são as
+  // receitas salvas de ninguém, isso é "minhas receitas" em outra página.
   // O catálogo garante que a landing nunca renderize vazia, mesmo sem login,
-  // sem rede ou sem créditos de IA (visitante anônimo não enxerga user_recipes por RLS).
+  // sem rede ou sem créditos de IA.
   //
-  // force = true pula as salvas e o cache e vai direto na IA. É o caminho do
-  // botão "gerar novas", uma ação explícita de quem está na tela.
+  // force = true pula o cache e vai direto na IA. É o caminho do botão
+  // "gerar novas", uma ação explícita de quem está na tela.
   const loadFeatured = useCallback(async (force = false) => {
     setLoadingFeatured(true);
     try {
       if (!force) {
-        const { data, error } = await supabase
-          .from("user_recipes")
-          .select(
-            "id, title, category, time_minutes, description, ingredients, instructions, difficulty, diet, image_url, image_photographer, image_photographer_url",
-          )
-          .order("created_at", { ascending: false })
-          .limit(5);
-        if (error) console.error("destaques: user_recipes", error);
-
-        if (data && data.length >= 3) {
-          setFeatured(
-            data.map((r) => ({
-              id: r.id,
-              title: r.title,
-              category: r.category ?? "",
-              time_minutes: r.time_minutes ?? 0,
-              description: r.description ?? "",
-              ingredients: r.ingredients ?? [],
-              instructions: r.instructions ?? "",
-              difficulty: r.difficulty ?? "",
-              diet: r.diet ?? [],
-              image_url: r.image_url,
-              image_photographer: r.image_photographer,
-              image_photographer_url: r.image_photographer_url,
-            })),
-          );
-          return;
-        }
-
-        // Só aqui o cache entra: é o único ramo que chamaria a IA.
         const cached = readFeaturedCache();
         if (cached) {
           setFeatured(cached);

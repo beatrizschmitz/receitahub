@@ -284,6 +284,7 @@ function RecipesPage() {
         sessionSeed.current = hit.seed;
         setRecipes(hit.recipes);
         setError(null);
+        setLoading(false);
         return;
       }
     }

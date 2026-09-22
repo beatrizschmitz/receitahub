@@ -61,7 +61,12 @@ function PlansPage() {
   // Enquanto a assinatura cancelada ainda vale, não dá pra trocar de plano —
   // só depois que o período atual encerrar de fato.
   const lockedByCancellation = isCanceled && periodEndsInFuture;
-  const canCancel = session && !isFree && !isCanceled;
+  // Com qualquer plano pago vigente — ativo OU cancelado mas ainda dentro do
+  // período pago — o usuário precisa cancelar antes de trocar; não dá pra
+  // pular direto de um plano pago pra outro. Só libera de novo quando volta
+  // pro gratuito de verdade (nunca assinou, ou o período cancelado encerrou).
+  const hasPaidPlan = !isFree;
+  const canCancel = session && hasPaidPlan && !isCanceled;
 
   const handleSelect = async (next: PlanTier) => {
     if (!session) {
@@ -69,7 +74,7 @@ function PlansPage() {
       return;
     }
     if (next === tier) return;
-    if (lockedByCancellation) return;
+    if (hasPaidPlan) return;
     if (next !== "free") {
       navigate({ to: "/pagamento", search: { plan: next } });
       return;
@@ -124,6 +129,13 @@ function PlansPage() {
             </p>
           )}
 
+          {session && !loading && hasPaidPlan && !lockedByCancellation && (
+            <p className="mt-4 text-sm text-cream/45 max-w-xl">
+              Para trocar de plano, cancele sua assinatura atual primeiro — o novo plano fica
+              disponível assim que ela encerrar.
+            </p>
+          )}
+
           {session && !loading && canCancel && (
             <button
               onClick={() => setConfirmOpen(true)}
@@ -137,7 +149,7 @@ function PlansPage() {
         <div className="grid gap-6 md:grid-cols-3 mt-12">
           {PLANS.map((plan) => {
             const isCurrent = session && plan.tier === tier;
-            const isLocked = !isCurrent && lockedByCancellation;
+            const isLocked = !isCurrent && hasPaidPlan;
             return (
               <div
                 key={plan.tier}
@@ -184,8 +196,10 @@ function PlansPage() {
                   onClick={() => handleSelect(plan.tier)}
                   disabled={!!isCurrent || isLocked || pending !== null}
                   title={
-                    isLocked && currentPeriodEnd
-                      ? `Disponível a partir de ${formatDate(currentPeriodEnd)}`
+                    isLocked
+                      ? lockedByCancellation && currentPeriodEnd
+                        ? `Disponível a partir de ${formatDate(currentPeriodEnd)}`
+                        : "Cancele sua assinatura atual para trocar de plano"
                       : undefined
                   }
                   className={`mt-8 rounded-full py-3 text-sm transition disabled:opacity-60 ${

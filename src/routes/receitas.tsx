@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Clock, Gauge, Search, Utensils } from "lucide-react";
 import { RecipeCover, RecipePhotoCredit } from "@/components/RecipeCover";
 import { PortionSlider } from "@/components/PortionSlider";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/receitas")({
   component: RecipesPage,
@@ -276,8 +277,16 @@ function RecipesPage() {
         image_photographer: recipe.image_photographer ?? null,
         image_photographer_url: recipe.image_photographer_url ?? null,
       });
-      if (!error) setSavedIds((prev) => new Set(prev).add(recipe.id));
-    } catch (e) { console.error(e); }
+      if (!error) {
+        setSavedIds((prev) => new Set(prev).add(recipe.id));
+      } else {
+        console.error(error);
+        toast.error("Não consegui salvar a receita. Tente novamente.");
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Não consegui salvar a receita. Tente novamente.");
+    }
     finally { setSavingId(null); }
   }
 

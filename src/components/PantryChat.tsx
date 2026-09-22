@@ -75,27 +75,56 @@ function isInstructionHeading(line: string) {
   );
 }
 
-// Detecta se a mensagem contém uma receita (tem ingredientes + modo de preparo)
+// Detecta se a mensagem contém uma receita (tem ingredientes + modo de preparo).
+// Antes disso dependia só de duas palavras-chave ("ingrediente" + "preparo"),
+// o que perdia receita sempre que o chef fugia um pouco da estrutura pedida no
+// prompt (ver supabase/functions/pantry-chat) — daí o botão "salvar" some às
+// vezes mesmo com uma receita completa na tela. Agora usa listas de sinônimos
+// bem mais largas e, se ainda assim não bater, cai para um sinal estrutural
+// (lista de itens seguida de passo a passo numerado).
 function detectRecipe(content: string): boolean {
   const lower = normalizeText(content);
   const hasIngredients =
     lower.includes("ingrediente") ||
-    lower.includes("xícara") ||
+    lower.includes("xicara") ||
     lower.includes("colher") ||
     lower.includes("gramas") ||
-    lower.includes("g de ") ||
-    lower.includes("ml de ");
+    lower.includes(" g de ") ||
+    lower.includes("ml de ") ||
+    lower.includes("unidade") ||
+    lower.includes("dente de alho") ||
+    lower.includes("pitada") ||
+    lower.includes("fatia") ||
+    lower.includes("a gosto");
   const hasInstructions =
     lower.includes("preparo") ||
     lower.includes("modo de fazer") ||
+    lower.includes("como fazer") ||
     lower.includes("passo") ||
     lower.includes("refog") ||
-    lower.includes("cozinhe") ||
+    lower.includes("cozinh") ||
     lower.includes("ferv") ||
     lower.includes("misture") ||
+    lower.includes("mexa") ||
     lower.includes("adicione") ||
+    lower.includes("acrescente") ||
+    lower.includes("junte") ||
+    lower.includes("tempere") ||
+    lower.includes("doure") ||
+    lower.includes("frite") ||
+    lower.includes("asse") ||
+    lower.includes("forno") ||
+    lower.includes("escorra") ||
+    lower.includes("reserve") ||
+    lower.includes("sirva") ||
     lower.includes("finaliz");
-  return hasIngredients && hasInstructions;
+  if (hasIngredients && hasInstructions) return true;
+
+  // Sinal estrutural: bloco de marcadores (ingredientes) + lista numerada
+  // (passo a passo) — típico de receita mesmo sem bater nas palavras acima.
+  const bulletItems = (content.match(/^\s*[-*•]\s+.+$/gm) ?? []).length;
+  const numberedSteps = (content.match(/^\s*\d+[.)]\s+.+$/gm) ?? []).length;
+  return bulletItems >= 3 && numberedSteps >= 2;
 }
 
 // Extrai título da receita do texto

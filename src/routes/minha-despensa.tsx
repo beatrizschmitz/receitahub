@@ -265,19 +265,6 @@ function PantryPage() {
     if (!error) setItems(items.filter((i) => i.id !== id));
   };
 
-  const handleAddToShoppingList = async (item: Item) => {
-    const { error } = await supabase.from("shopping_list_items").insert({
-      user_id: session.user.id,
-      name: item.name,
-      category: item.category,
-      quantity: item.quantity,
-      source: "manual",
-    });
-    if (error) {
-      console.error(error);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-charcoal text-cream">
       <link
@@ -579,13 +566,6 @@ function PantryPage() {
                     </span>
                   </div>
                   <div className="col-span-2 md:col-span-1 text-right flex flex-col gap-1 items-end">
-                    <button
-                      onClick={() => handleAddToShoppingList(item)}
-                      className="md:opacity-0 md:group-hover:opacity-100 text-cream/50 hover:text-blush transition text-xs"
-                      title="Adicionar à lista de compras"
-                    >
-                      + lista
-                    </button>
                     <button
                       onClick={() => handleRemove(item.id)}
                       className="md:opacity-0 md:group-hover:opacity-100 text-cream/50 hover:text-red-400 transition text-xs"

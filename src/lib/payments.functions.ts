@@ -26,6 +26,11 @@ export type PaymentResult =
   | { approved: true; transactionId: string; planTier: "basico" | "premium"; periodEnd: string }
   | { approved: false; message: string };
 
+// DEMO: período de cobrança encurtado pra 1 minuto (era 30 dias) só pra dar
+// pra mostrar pro professor o ciclo cancelar → esperar → trocar de plano sem
+// esperar um mês de verdade. Voltar pra 30 dias (30 * 864e5) antes de produção.
+const BILLING_PERIOD_MS = 60 * 1000;
+
 function luhnValid(number: string) {
   let sum = 0;
   let double = false;
@@ -87,7 +92,7 @@ async function chargeGateway(input: PaymentInput): Promise<PaymentResult> {
       approved: true,
       transactionId: payload.id,
       planTier: input.planTier,
-      periodEnd: new Date(Date.now() + 30 * 864e5).toISOString(),
+      periodEnd: new Date(Date.now() + BILLING_PERIOD_MS).toISOString(),
     };
   }
 
@@ -107,7 +112,7 @@ async function chargeGateway(input: PaymentInput): Promise<PaymentResult> {
     approved: true,
     transactionId,
     planTier: input.planTier,
-    periodEnd: new Date(Date.now() + 30 * 864e5).toISOString(),
+    periodEnd: new Date(Date.now() + BILLING_PERIOD_MS).toISOString(),
   };
 }
 

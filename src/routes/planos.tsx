@@ -1,9 +1,19 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Camera, Check, Salad, X } from "lucide-react";
+import { Camera, Check, Loader2, Salad, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/contexts/SubscriptionContext";
 import { PLANS, PLAN_ICONS, PLAN_LABEL, type PlanTier } from "@/lib/plans";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/planos")({
@@ -28,11 +38,30 @@ export const Route = createFileRoute("/planos")({
   }),
 });
 
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+}
+
 function PlansPage() {
   const { session } = useAuth();
-  const { tier, loading, changePlan, currentPeriodEnd } = useSubscription();
+  const { tier, status, loading, changePlan, cancelSubscription, currentPeriodEnd } =
+    useSubscription();
   const navigate = useNavigate();
   const [pending, setPending] = useState<PlanTier | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [cancelBusy, setCancelBusy] = useState(false);
+
+  const isFree = tier === "free";
+  const isCanceled = status === "canceled";
+  const periodEndsInFuture = Boolean(currentPeriodEnd && new Date(currentPeriodEnd) > new Date());
+  // Enquanto a assinatura cancelada ainda vale, não dá pra trocar de plano —
+  // só depois que o período atual encerrar de fato.
+  const lockedByCancellation = isCanceled && periodEndsInFuture;
+  const canCancel = session && !isFree && !isCanceled;
 
   const handleSelect = async (next: PlanTier) => {
     if (!session) {
@@ -40,6 +69,7 @@ function PlansPage() {
       return;
     }
     if (next === tier) return;
+    if (lockedByCancellation) return;
     if (next !== "free") {
       navigate({ to: "/pagamento", search: { plan: next } });
       return;
@@ -58,6 +88,15 @@ function PlansPage() {
     }
   };
 
+  const handleCancel = async () => {
+    setCancelBusy(true);
+    const ok = await cancelSubscription();
+    setCancelBusy(false);
+    setConfirmOpen(false);
+    if (ok) toast.success("Assinatura cancelada. Você mantém o acesso até o fim do período pago.");
+    else toast.error("Não consegui cancelar sua assinatura. Tente novamente.");
+  };
+
   return (
     <div className="min-h-screen bg-charcoal text-cream">
       <main className="max-w-6xl mx-auto px-6 lg:px-10 py-16">
@@ -72,15 +111,33 @@ function PlansPage() {
           {session && !loading && (
             <p className="text-sm text-cream/50 mt-4">
               Plano atual: <span className="text-blush">{PLAN_LABEL[tier]}</span>
-              {currentPeriodEnd &&
+              {currentPeriodEnd && !isCanceled &&
                 ` — renova em ${new Date(currentPeriodEnd).toLocaleDateString("pt-BR")}`}
             </p>
+          )}
+
+          {session && !loading && lockedByCancellation && currentPeriodEnd && (
+            <p className="mt-4 rounded-xl border border-blush/25 bg-blush/[0.06] px-4 py-3 text-sm text-cream/70 max-w-xl">
+              Sua assinatura do plano {PLAN_LABEL[tier]} foi cancelada e vale até{" "}
+              {formatDate(currentPeriodEnd)}. A partir dessa data você poderá contratar outro
+              plano — até lá seu plano atual continua ativo.
+            </p>
+          )}
+
+          {session && !loading && canCancel && (
+            <button
+              onClick={() => setConfirmOpen(true)}
+              className="mt-4 text-sm text-cream/45 underline decoration-cream/20 underline-offset-4 transition hover:text-red-400 hover:decoration-red-400/50"
+            >
+              Cancelar assinatura
+            </button>
           )}
         </header>
 
         <div className="grid gap-6 md:grid-cols-3 mt-12">
           {PLANS.map((plan) => {
             const isCurrent = session && plan.tier === tier;
+            const isLocked = !isCurrent && lockedByCancellation;
             return (
               <div
                 key={plan.tier}
@@ -125,7 +182,12 @@ function PlansPage() {
 
                 <button
                   onClick={() => handleSelect(plan.tier)}
-                  disabled={!!isCurrent || pending !== null}
+                  disabled={!!isCurrent || isLocked || pending !== null}
+                  title={
+                    isLocked && currentPeriodEnd
+                      ? `Disponível a partir de ${formatDate(currentPeriodEnd)}`
+                      : undefined
+                  }
                   className={`mt-8 rounded-full py-3 text-sm transition disabled:opacity-60 ${
                     plan.highlight
                       ? "bg-blush text-charcoal hover:bg-blush-deep"
@@ -134,13 +196,15 @@ function PlansPage() {
                 >
                   {isCurrent
                     ? "seu plano atual"
-                    : pending === plan.tier
-                      ? "ativando..."
-                      : !session
-                        ? "criar conta"
-                        : plan.tier === "free"
-                          ? "voltar para o gratuito"
-                          : `assinar ${plan.name}`}
+                    : isLocked
+                      ? "indisponível no momento"
+                      : pending === plan.tier
+                        ? "ativando..."
+                        : !session
+                          ? "criar conta"
+                          : plan.tier === "free"
+                            ? "voltar para o gratuito"
+                            : `assinar ${plan.name}`}
                 </button>
               </div>
             );
@@ -175,6 +239,39 @@ function PlansPage() {
           nunca ficam salvos aqui; guardamos só o identificador da transação.
         </p>
       </main>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent className="max-w-md border-border bg-charcoal text-cream sm:rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display italic text-2xl font-normal text-blush">
+              Cancelar sua assinatura?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-cream/60 leading-relaxed">
+              {currentPeriodEnd
+                ? `Você mantém o plano ${PLAN_LABEL[tier]} até ${formatDate(currentPeriodEnd)} e depois volta para o gratuito. Não haverá nova cobrança.`
+                : "Você volta para o plano gratuito e não haverá nova cobrança."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-2 gap-2 sm:gap-0">
+            <AlertDialogCancel
+              disabled={cancelBusy}
+              className="rounded-full border border-border bg-transparent px-6 py-2.5 text-sm text-cream/70 transition hover:border-cream/40 hover:bg-transparent hover:text-cream"
+            >
+              Manter assinatura
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={cancelBusy}
+              onClick={(e) => {
+                e.preventDefault();
+                void handleCancel();
+              }}
+              className="rounded-full bg-blush px-6 py-2.5 text-sm text-charcoal transition hover:bg-blush-deep"
+            >
+              {cancelBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Sim, cancelar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

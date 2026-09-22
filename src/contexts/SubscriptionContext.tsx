@@ -112,11 +112,16 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     else setChatUsedToday((n) => n + 1);
   }, [user]);
 
+  // DEMO: período de cobrança encurtado pra 1 minuto (era 30 dias) só pra dar
+  // pra mostrar pro professor o ciclo cancelar → esperar → trocar de plano
+  // sem esperar um mês de verdade. Voltar pra 30 dias antes de ir pra produção.
+  const BILLING_PERIOD_MS = 60 * 1000;
+
   const changePlan = useCallback(
     async (next: PlanTier) => {
       if (!user) return false;
       const periodEnd =
-        next === "free" ? null : new Date(Date.now() + 30 * 864e5).toISOString();
+        next === "free" ? null : new Date(Date.now() + BILLING_PERIOD_MS).toISOString();
       const { error } = await supabase.from("subscriptions").upsert(
         {
           user_id: user.id,

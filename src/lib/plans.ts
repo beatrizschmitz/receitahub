@@ -27,7 +27,6 @@ export const PLANS: PlanDefinition[] = [
     icon: "Sprout",
     features: [
       { label: "Despensa virtual com alertas de validade", included: true },
-      { label: "Lista de compras automática", included: true },
       { label: "Receitas geradas por IA", included: true },
       { label: `Chef Despensa: ${FREE_CHAT_DAILY_LIMIT} mensagens por dia`, included: true },
       { label: "Reconhecimento de ingredientes por foto", included: false },

@@ -161,9 +161,7 @@ function PlansPage() {
                 className={`relative flex flex-col rounded-2xl border p-7 transition ${
                   isCurrent
                     ? "border-blush ring-2 ring-blush/40 bg-blush/[0.09] shadow-lg shadow-blush/10"
-                    : plan.highlight
-                      ? "border-blush/60 bg-blush/[0.06]"
-                      : "border-border bg-cream/[0.02]"
+                    : "border-border bg-cream/[0.02]"
                 }`}
               >
                 {isCurrent ? (
@@ -173,7 +171,7 @@ function PlansPage() {
                   </span>
                 ) : (
                   plan.highlight && (
-                    <span className="absolute -top-3 left-7 rounded-full bg-blush px-3 py-1 text-[11px] font-medium text-charcoal">
+                    <span className="absolute -top-3 left-7 rounded-full border border-border bg-charcoal px-3 py-1 text-[11px] font-medium text-cream/55">
                       Mais escolhido
                     </span>
                   )
@@ -217,11 +215,13 @@ function PlansPage() {
                       : undefined
                   }
                   className={`mt-8 rounded-full py-3 text-sm transition disabled:opacity-60 ${
-                    isCurrent || isLocked
-                      ? "border border-border text-cream/40 cursor-not-allowed"
-                      : plan.highlight
-                        ? "bg-blush text-charcoal hover:bg-blush-deep"
-                        : "border border-border text-cream/80 hover:border-blush hover:text-blush"
+                    isCurrent
+                      ? "border border-blush/50 bg-blush/10 text-blush cursor-default"
+                      : isLocked
+                        ? "border border-border text-cream/40 cursor-not-allowed"
+                        : plan.highlight
+                          ? "bg-blush text-charcoal hover:bg-blush-deep"
+                          : "border border-border text-cream/80 hover:border-blush hover:text-blush"
                   }`}
                 >
                   {isCurrent

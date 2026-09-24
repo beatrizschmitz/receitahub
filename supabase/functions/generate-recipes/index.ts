@@ -339,11 +339,14 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const body = await req.json().catch(() => ({}));
-    const { category = "todas", diet = [], ingredients = [], search = "", seed = "" } = body;
+    const { category = "todas", diet = [], ingredients = [], search = "", seed = "", exclude = [] } = body;
     const categoryPart = category && category !== "todas" ? `na categoria "${category}"` : "de qualquer categoria";
     const dietPart = diet.length > 0 ? `As receitas devem ser: ${diet.join(", ")}.` : "";
     const ingredientsPart = ingredients.length > 0 ? `Use preferencialmente estes ingredientes: ${ingredients.join(", ")}.` : "";
     const searchPart = search ? `O usuário busca por: "${search}".` : "";
+    const excludePart = Array.isArray(exclude) && exclude.length > 0
+      ? `Não repita estes pratos, que já aparecem em outra seção do site: ${exclude.join(", ")}. Gere receitas diferentes deles.`
+      : "";
     const variationSeed = seed || Math.random().toString(36).slice(2);
     const inspirations = ["nordestina", "mineira", "paulista", "gaúcha", "baiana", "amazônica", "italiana abrasileirada", "japonesa abrasileirada", "árabe abrasileirada", "portuguesa", "caipira", "contemporânea", "vegetariana criativa", "comfort food", "de boteco", "de festa", "de domingo em família", "saudável", "low carb", "rápida do dia a dia"];
     const picks = [...inspirations].sort(() => Math.random() - 0.5).slice(0, 3).join(", ");
@@ -351,7 +354,7 @@ Deno.serve(async (req) => {
     // image_query vai para um banco de fotos internacional (Pexels), que só
     // indexa em inglês — por isso é o único campo que foge do português.
     const systemPrompt = "Você é um chef brasileiro especialista e criativo. Sempre varia as sugestões e chama a função return_recipes exatamente uma vez. Responda em português do Brasil, com uma exceção: o campo image_query deve ser em INGLÊS, com 2 a 4 palavras, descrevendo o prato do jeito que um banco de fotos internacional encontraria (ex.: escondidinho de carne seca -> \"shepherds pie casserole\"; temaki -> \"sushi hand roll\"; moqueca -> \"seafood stew bowl\"). Prefira o tipo de prato ao nome regional. O modo de preparo deve ser uma única string com até 5 passos numerados separados por quebras de linha.";
-    const userPrompt = `Gere exatamente 6 receitas ${categoryPart}. ${dietPart} ${ingredientsPart} ${searchPart} ${variationPart}`;
+    const userPrompt = `Gere exatamente 6 receitas ${categoryPart}. ${dietPart} ${ingredientsPart} ${searchPart} ${excludePart} ${variationPart}`;
 
     const aiRes = await callAI({
       model: AI_MODEL,

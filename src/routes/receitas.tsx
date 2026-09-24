@@ -41,7 +41,7 @@ function describeRecipeError(fnError: unknown, payloadError?: string): string {
   }`;
 
   if (status === 429 || status === 503 || /limite de requisi|rate limit|too many requests|sobrecarregad/i.test(raw)) {
-    return "Estamos com alta demanda no momento. Tente novamente em alguns minutos.";
+    return "Estamos preparando muitas receitas ao mesmo tempo — tenta de novo em instantes?";
   }
   if (status === 402 || /cr[ée]dito|quota|insufficient/i.test(raw)) {
     return "O serviço de receitas está indisponível no momento. Tente novamente mais tarde.";
@@ -87,6 +87,61 @@ function writeRecipesCache(cache: Record<string, RecipesCacheEntry>) {
     sessionStorage.setItem(RECIPES_CACHE_KEY, JSON.stringify(Object.fromEntries(entries)));
   } catch {
     // sessionStorage indisponível (modo privado, quota cheia etc.) — segue sem cache
+  }
+}
+
+// Cache semanal da leva padrão de "Sugestões para você" (sem filtro, sem
+// busca) — o mesmo padrão de "receita da semana" já usado na home
+// (FEATURED_CACHE em index.tsx), mas com chave própria para não colidir com
+// ela. localStorage em vez de sessionStorage porque precisa sobreviver ao
+// fechar a aba: "fixas por semana" só faz sentido se persistir entre
+// visitas, não só dentro da mesma sessão. Só essa combinação de filtros usa
+// este cache — trocar categoria/dieta/busca continua gerando na hora, porque
+// aí o pedido é outro, não "a sugestão da semana".
+const DEFAULT_RECIPES_CACHE_KEY = "receitahub:recipes-semana-fixa";
+const DEFAULT_RECIPES_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+type DefaultRecipesCache = { at: number; recipes: Recipe[] };
+
+function isDefaultView(category: string, diets: string[], search: string) {
+  return category === "todas" && diets.length === 0 && !search.trim();
+}
+
+function readDefaultRecipesCache(): Recipe[] | null {
+  try {
+    const raw = localStorage.getItem(DEFAULT_RECIPES_CACHE_KEY);
+    if (!raw) return null;
+    const cached = JSON.parse(raw) as DefaultRecipesCache;
+    if (!Array.isArray(cached?.recipes) || cached.recipes.length === 0) return null;
+    if (Date.now() - cached.at > DEFAULT_RECIPES_TTL_MS) return null;
+    return cached.recipes;
+  } catch {
+    return null;
+  }
+}
+
+function writeDefaultRecipesCache(recipes: Recipe[]) {
+  try {
+    localStorage.setItem(
+      DEFAULT_RECIPES_CACHE_KEY,
+      JSON.stringify({ at: Date.now(), recipes } satisfies DefaultRecipesCache),
+    );
+  } catch {
+    // storage cheio ou bloqueado: segue sem cache
+  }
+}
+
+// Evita repetir na página de receitas o que já apareceu nos destaques da
+// home (FEATURED_CACHE_KEY em index.tsx) — mesmo cache, só lido aqui, nunca
+// escrito, para não acoplar as duas páginas.
+function readFeaturedTitles(): string[] {
+  try {
+    const raw = localStorage.getItem("receitahub:featured");
+    if (!raw) return [];
+    const cached = JSON.parse(raw) as { recipes?: Array<{ title?: string }> };
+    return (cached?.recipes ?? []).map((r) => r.title).filter((t): t is string => !!t);
+  } catch {
+    return [];
   }
 }
 
@@ -277,9 +332,23 @@ function RecipesPage() {
   }, [session]);
 
   async function loadRecipes(category: string, diets: string[], searchTerm = "", forceFresh = false) {
+    const isDefault = isDefaultView(category, diets, searchTerm);
+
+    // "Sugestões para você" sem nenhum filtro: leva fixa da semana, só sai do
+    // cache com um clique explícito em "Gerar novas".
+    if (isDefault && !forceFresh) {
+      const cached = readDefaultRecipesCache();
+      if (cached) {
+        setRecipes(cached);
+        setError(null);
+        setLoading(false);
+        return;
+      }
+    }
+
     const cacheKey = recipesCacheKey(category, diets, searchTerm);
 
-    if (!forceFresh) {
+    if (!isDefault && !forceFresh) {
       const hit = readRecipesCache()[cacheKey];
       if (hit && Date.now() - hit.ts < RECIPES_CACHE_TTL_MS) {
         sessionSeed.current = hit.seed;
@@ -290,12 +359,17 @@ function RecipesPage() {
       }
     }
 
-    if (forceFresh) sessionSeed.current = Math.random().toString(36).slice(2);
+    sessionSeed.current = Math.random().toString(36).slice(2);
 
     setLoading(true); setError(null);
     try {
       const { data, error: fnError } = await supabase.functions.invoke("generate-recipes", {
-        body: { category, diet: diets, ingredients: pantry, search: searchTerm, seed: sessionSeed.current },
+        body: {
+          category, diet: diets, ingredients: pantry, search: searchTerm, seed: sessionSeed.current,
+          // Só na leva padrão faz sentido pedir pra IA não repetir os destaques
+          // da home — nas buscas/filtros o pedido já é outro.
+          exclude: isDefault ? readFeaturedTitles() : [],
+        },
       });
       if (fnError || data?.error) {
         setRecipes([]);
@@ -306,9 +380,13 @@ function RecipesPage() {
       const list: Recipe[] = data?.recipes ?? [];
       setRecipes(list);
       if (list.length > 0) {
-        const cache = readRecipesCache();
-        cache[cacheKey] = { recipes: list, seed: sessionSeed.current, ts: Date.now() };
-        writeRecipesCache(cache);
+        if (isDefault) {
+          writeDefaultRecipesCache(list);
+        } else {
+          const cache = readRecipesCache();
+          cache[cacheKey] = { recipes: list, seed: sessionSeed.current, ts: Date.now() };
+          writeRecipesCache(cache);
+        }
       }
     } catch (e) {
       setRecipes([]);
@@ -374,7 +452,7 @@ function RecipesPage() {
             </div>
             <h1 className="text-5xl md:text-6xl lg:text-7xl leading-[1.05] text-cream">
               Hoje você pode cozinhar<br />
-              <em className="text-blush font-display italic">{loading ? "…" : `${recipes.length} receitas`}</em>{" "}sem ir ao mercado.
+              <em className="text-blush font-display italic">algo delicioso</em>{" "}sem ir ao mercado.
             </h1>
           </div>
           <div className="mt-12 space-y-4">

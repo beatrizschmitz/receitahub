@@ -34,6 +34,7 @@ function ProfilePage() {
 
   const [displayName, setDisplayName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [avatarBroken, setAvatarBroken] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [confirmWipe, setConfirmWipe] = useState(false);
@@ -195,14 +196,12 @@ function ProfilePage() {
               <h2 className="font-display text-2xl text-cream mb-6">Informações pessoais</h2>
 
               <div className="flex items-center gap-6 mb-8">
-                {avatarUrl ? (
+                {avatarUrl && !avatarBroken ? (
                   <img
                     src={avatarUrl}
                     alt="avatar"
                     className="h-20 w-20 rounded-full object-cover border-2 border-blush/40"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = "none";
-                    }}
+                    onError={() => setAvatarBroken(true)}
                   />
                 ) : (
                   <div className="h-20 w-20 rounded-full bg-blush/20 border-2 border-blush/40 flex items-center justify-center font-display text-3xl text-blush">
@@ -232,7 +231,10 @@ function ProfilePage() {
                   <input
                     type="url"
                     value={avatarUrl}
-                    onChange={(e) => setAvatarUrl(e.target.value)}
+                    onChange={(e) => {
+                      setAvatarUrl(e.target.value);
+                      setAvatarBroken(false);
+                    }}
                     maxLength={500}
                     placeholder="https://..."
                     className="w-full bg-charcoal border border-border rounded-xl px-4 py-3 text-cream placeholder:text-cream/40 focus:outline-none focus:border-blush/50"

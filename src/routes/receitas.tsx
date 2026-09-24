@@ -41,7 +41,7 @@ function describeRecipeError(fnError: unknown, payloadError?: string): string {
   }`;
 
   if (status === 429 || status === 503 || /limite de requisi|rate limit|too many requests|sobrecarregad/i.test(raw)) {
-    return "Estamos com alta demanda no momento. Tente novamente em alguns minutos.";
+    return "Estamos preparando muitas receitas ao mesmo tempo — tenta de novo em instantes?";
   }
   if (status === 402 || /cr[ée]dito|quota|insufficient/i.test(raw)) {
     return "O serviço de receitas está indisponível no momento. Tente novamente mais tarde.";
@@ -370,7 +370,7 @@ function RecipesPage() {
             </div>
             <h1 className="text-5xl md:text-6xl lg:text-7xl leading-[1.05] text-cream">
               Hoje você pode cozinhar<br />
-              <em className="text-blush font-display italic">{loading ? "…" : `${recipes.length} receitas`}</em>{" "}sem ir ao mercado.
+              <em className="text-blush font-display italic">algo delicioso</em>{" "}sem ir ao mercado.
             </h1>
           </div>
           <div className="mt-12 space-y-4">

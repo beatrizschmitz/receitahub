@@ -23,17 +23,36 @@ const AI_MODEL = Deno.env.get("AI_MODEL") ?? "gemini-2.5-flash";
 // reserva antes de desistir. AI_API_KEY_BACKUP é opcional — sem ela, só a
 // principal roda.
 const RETRYABLE_STATUS = [429, 402, 403, 503];
+// Teto de espera por tentativa: sem isso, uma trava de rede na IA (não um erro
+// explícito) deixa o chat "pensando" indefinidamente. Um timeout vira um 503
+// comum, que já aciona a chave backup e a mensagem amigável de sempre.
+const AI_TIMEOUT_MS = 45_000;
+
+async function fetchAI(key: string, body: string): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+  try {
+    return await fetch(AI_URL, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body,
+      signal: controller.signal,
+    });
+  } catch (err) {
+    console.error("pantry-chat: falha ou timeout ao chamar a IA", err);
+    return new Response(null, { status: 503 });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function callAI(
   payload: unknown,
   apiKey: string,
   backupKey: string,
 ): Promise<Response> {
   const body = JSON.stringify(payload);
-  const primary = await fetch(AI_URL, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body,
-  });
+  const primary = await fetchAI(apiKey, body);
   if (primary.ok || !backupKey || !RETRYABLE_STATUS.includes(primary.status)) {
     console.log(`pantry-chat: chave principal usada (status ${primary.status})`);
     return primary;
@@ -41,11 +60,7 @@ async function callAI(
   console.warn(
     `pantry-chat: chave principal esgotada/indisponível (status ${primary.status}), tentando chave backup`,
   );
-  const backup = await fetch(AI_URL, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${backupKey}`, "Content-Type": "application/json" },
-    body,
-  });
+  const backup = await fetchAI(backupKey, body);
   console.log(`pantry-chat: chave backup usada (status ${backup.status})`);
   return backup;
 }

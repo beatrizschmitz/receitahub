@@ -206,13 +206,34 @@ const AI_MODEL = Deno.env.get("AI_MODEL") ?? "gemini-2.5-flash";
 // reserva antes de desistir. AI_API_KEY_BACKUP é opcional — sem ela, só a
 // principal roda.
 const RETRYABLE_STATUS = [429, 402, 403, 503];
+// Teto de espera por tentativa. Sem isso, se a IA simplesmente não responder
+// (trava de rede, não um erro explícito), a função fica presa até o limite da
+// própria Supabase Edge Function — e a tela do usuário fica "carregando..."
+// esse tempo todo. Um timeout vira um 503 comum, que já aciona a chave backup
+// e a mensagem amigável de sempre.
+const AI_TIMEOUT_MS = 45_000;
+
+async function fetchAI(key: string, body: string): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+  try {
+    return await fetch(AI_URL, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body,
+      signal: controller.signal,
+    });
+  } catch (err) {
+    console.error("generate-recipes: falha ou timeout ao chamar a IA", err);
+    return new Response(null, { status: 503 });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function callAI(payload: unknown): Promise<Response> {
   const body = JSON.stringify(payload);
-  const primary = await fetch(AI_URL, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${AI_API_KEY}`, "Content-Type": "application/json" },
-    body,
-  });
+  const primary = await fetchAI(AI_API_KEY, body);
   if (primary.ok || !AI_API_KEY_BACKUP || !RETRYABLE_STATUS.includes(primary.status)) {
     console.log(`generate-recipes: chave principal usada (status ${primary.status})`);
     return primary;
@@ -220,11 +241,7 @@ async function callAI(payload: unknown): Promise<Response> {
   console.warn(
     `generate-recipes: chave principal esgotada/indisponível (status ${primary.status}), tentando chave backup`,
   );
-  const backup = await fetch(AI_URL, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${AI_API_KEY_BACKUP}`, "Content-Type": "application/json" },
-    body,
-  });
+  const backup = await fetchAI(AI_API_KEY_BACKUP, body);
   console.log(`generate-recipes: chave backup usada (status ${backup.status})`);
   return backup;
 }

@@ -326,12 +326,19 @@ function MyRecipesPage() {
     void (async () => {
       setLoading(true);
       const today = new Date().toISOString().slice(0, 10);
+      // Filtro explícito por user_id aqui, mesmo com RLS: a query estava
+      // dependendo só da política do banco pra restringir as linhas, e ela
+      // não está isolando direito por usuário — misturava receitas de outras
+      // contas na listagem. Isso não substitui corrigir a policy no Supabase,
+      // mas já garante que esta tela só mostra o que é do usuário logado.
       const [recipesRes, caloriesRes] = await Promise.all([
         supabase.from("user_recipes")
           .select("id, title, image_url, image_photographer, image_photographer_url, category, time_minutes, difficulty, diet, description, is_favorite, ingredients, instructions, calories_per_serving, rating, notes, times_cooked, cost_home_brl, cost_delivery_brl")
+          .eq("user_id", session.user.id)
           .order("created_at", { ascending: false }),
         supabase.from("calorie_log")
           .select("id, recipe_id, recipe_title, calories, consumed_at")
+          .eq("user_id", session.user.id)
           .eq("consumed_at", today)
           .order("created_at", { ascending: false }),
       ]);

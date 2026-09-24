@@ -15,21 +15,52 @@ type GatewayMessage = {
   content: string | Array<Record<string, unknown>>;
 };
 
+// Mesmo padrão de resiliência usado em supabase/functions/generate-recipes e
+// pantry-chat: tenta a chave reserva quando a principal esgota cota (429/402/
+// 403) ou o modelo está sobrecarregado do lado do provedor (503), e usa um
+// timeout para não deixar a função (e a tela) presa se a IA simplesmente não
+// responder. Antes desta função não tinha nenhuma das duas coisas — "tirar
+// foto da despensa" e "gerar plano alimentar" quebravam direto num 503,
+// mesmo já tendo corrigido o mesmo problema em geração de receitas e no chat.
+const RETRYABLE_STATUS = [429, 402, 403, 503];
+const AI_TIMEOUT_MS = 45_000;
+
+async function fetchAI(key: string, payload: unknown): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+  try {
+    return await fetch(GATEWAY, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    console.error("ai.functions: falha ou timeout ao chamar a IA", err);
+    return new Response(null, { status: 503 });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function callGateway(messages: GatewayMessage[], temperature = 0.8) {
   const key = process.env["AI_API_KEY"];
   if (!key) throw new Error("IA não configurada.");
+  const backupKey = process.env["AI_API_KEY_BACKUP"];
 
-  const resp = await fetch(GATEWAY, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: AI_MODEL, temperature, messages }),
-  });
+  const payload = { model: AI_MODEL, temperature, messages };
+  let resp = await fetchAI(key, payload);
+  if (!resp.ok && backupKey && RETRYABLE_STATUS.includes(resp.status)) {
+    console.warn(`ai.functions: chave principal esgotada/indisponível (status ${resp.status}), tentando chave backup`);
+    resp = await fetchAI(backupKey, payload);
+  }
 
   if (!resp.ok) {
-    const detail = await resp.text();
+    const detail = await resp.text().catch(() => "");
     console.error("ai gateway", resp.status, detail);
     if (resp.status === 429) throw new Error("Muitas requisições. Tente em instantes.");
     if (resp.status === 402) throw new Error("Créditos de IA esgotados.");
+    if (resp.status === 503) throw new Error("O chef está temporariamente sobrecarregado. Tente novamente em alguns instantes.");
     throw new Error("Erro ao falar com a IA.");
   }
 

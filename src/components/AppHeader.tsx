@@ -81,7 +81,18 @@ export function AppHeader() {
 
         {/* ml-auto é no-op quando o nav tem flex-1; serve abaixo de lg, onde o
             nav está hidden e nada mais empurra o botão para a direita. */}
-        <div className="ml-auto flex items-center shrink-0">
+        <div className="ml-auto flex items-center gap-3 shrink-0">
+          {/* Entrar direto na barra: antes só dava pra logar abrindo a gaveta
+              do menu e descendo até "Perfil" — pouco óbvio pra quem chega
+              pela primeira vez. Fica visível sempre que não há sessão. */}
+          {!session && (
+            <Link
+              to="/login"
+              className="inline-flex items-center rounded-full border border-border px-4 py-1.5 text-sm text-cream/80 transition hover:border-blush hover:text-blush"
+            >
+              Entrar
+            </Link>
+          )}
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger
               aria-label="Abrir menu"

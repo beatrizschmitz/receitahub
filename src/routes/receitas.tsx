@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -41,7 +41,7 @@ function describeRecipeError(fnError: unknown, payloadError?: string): string {
   }`;
 
   if (status === 429 || status === 503 || /limite de requisi|rate limit|too many requests|sobrecarregad/i.test(raw)) {
-    return "Estamos preparando muitas receitas ao mesmo tempo — tenta de novo em instantes?";
+    return "Estamos com alta demanda no momento. Tente novamente em alguns minutos.";
   }
   if (status === 402 || /cr[ée]dito|quota|insufficient/i.test(raw)) {
     return "O serviço de receitas está indisponível no momento. Tente novamente mais tarde.";
@@ -255,6 +255,7 @@ function RecipeCard({ recipe, pantry, onOpen, onSave, saving, saved }: {
 
 function RecipesPage() {
   const { session } = useAuth();
+  const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState("todas");
   const [activeDiets, setActiveDiets] = useState<string[]>([]);
   const [search, setSearch] = useState("");
@@ -323,7 +324,10 @@ function RecipesPage() {
   }
 
   async function handleSave(recipe: Recipe) {
-    if (!session) return;
+    if (!session) {
+      navigate({ to: "/cadastro" });
+      return;
+    }
     setSavingId(recipe.id);
     try {
       const { error } = await supabase.from("user_recipes").insert({
@@ -370,7 +374,7 @@ function RecipesPage() {
             </div>
             <h1 className="text-5xl md:text-6xl lg:text-7xl leading-[1.05] text-cream">
               Hoje você pode cozinhar<br />
-              <em className="text-blush font-display italic">algo delicioso</em>{" "}sem ir ao mercado.
+              <em className="text-blush font-display italic">{loading ? "…" : `${recipes.length} receitas`}</em>{" "}sem ir ao mercado.
             </h1>
           </div>
           <div className="mt-12 space-y-4">

@@ -20,7 +20,7 @@ import { recognizePhoto, type RecognizedPhoto } from "@/lib/ai.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 
 type Recipe = RecognizedPhoto["recipe"];
 
@@ -347,6 +347,7 @@ function recipeToMarkdown(mainItem: string, recipe: Recipe): string {
 
 export function PantryChat() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { tier, canChat, chatLimit, chatRemaining, registerChatMessage } = useSubscription();
   const { requireFeature } = usePlanGate();
   const runRecognize = useServerFn(recognizePhoto);
@@ -422,7 +423,10 @@ export function PantryChat() {
   }
 
   async function saveRecipe(msgIndex: number) {
-    if (!user) return;
+    if (!user) {
+      navigate({ to: "/cadastro" });
+      return;
+    }
     const msg = messages[msgIndex];
     if (!msg?.content) return;
 
@@ -635,7 +639,12 @@ export function PantryChat() {
     }
   }
 
-  if (!user) return null;
+  // Antes o chat inteiro ficava escondido pra quem não tinha conta
+  // ("if (!user) return null"). O backend (pantry-chat) já suporta conversa
+  // anônima sem limite (ver auth check em supabase/functions/pantry-chat),
+  // e o envio de mensagem aqui já cai pra chave pública quando não há sessão
+  // — só a foto (que exige login) continua bloqueada, via requireFeature em
+  // pickPhoto/sendPhoto.
 
   return (
     <>

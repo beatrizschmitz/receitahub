@@ -23,36 +23,17 @@ const AI_MODEL = Deno.env.get("AI_MODEL") ?? "gemini-2.5-flash";
 // reserva antes de desistir. AI_API_KEY_BACKUP é opcional — sem ela, só a
 // principal roda.
 const RETRYABLE_STATUS = [429, 402, 403, 503];
-// Teto de espera por tentativa: sem isso, uma trava de rede na IA (não um erro
-// explícito) deixa o chat "pensando" indefinidamente. Um timeout vira um 503
-// comum, que já aciona a chave backup e a mensagem amigável de sempre.
-const AI_TIMEOUT_MS = 45_000;
-
-async function fetchAI(key: string, body: string): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
-  try {
-    return await fetch(AI_URL, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body,
-      signal: controller.signal,
-    });
-  } catch (err) {
-    console.error("pantry-chat: falha ou timeout ao chamar a IA", err);
-    return new Response(null, { status: 503 });
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 async function callAI(
   payload: unknown,
   apiKey: string,
   backupKey: string,
 ): Promise<Response> {
   const body = JSON.stringify(payload);
-  const primary = await fetchAI(apiKey, body);
+  const primary = await fetch(AI_URL, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body,
+  });
   if (primary.ok || !backupKey || !RETRYABLE_STATUS.includes(primary.status)) {
     console.log(`pantry-chat: chave principal usada (status ${primary.status})`);
     return primary;
@@ -60,7 +41,11 @@ async function callAI(
   console.warn(
     `pantry-chat: chave principal esgotada/indisponível (status ${primary.status}), tentando chave backup`,
   );
-  const backup = await fetchAI(backupKey, body);
+  const backup = await fetch(AI_URL, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${backupKey}`, "Content-Type": "application/json" },
+    body,
+  });
   console.log(`pantry-chat: chave backup usada (status ${backup.status})`);
   return backup;
 }
@@ -140,7 +125,8 @@ DESPENSA ATUAL DO USUÁRIO:
 ${pantryList}
 
 Regras:
-- Sugira receitas que possam ser feitas COM OS INGREDIENTES DA DESPENSA acima sempre que possível.
+- PRIORIDADE MÁXIMA: se o usuário pedir um prato, ingrediente ou tipo de receita específico (ex.: "quero uma receita com grana padano", "algo com chocolate", "um prato vegano"), a receita sugerida TEM que ser sobre esse pedido — esse ingrediente/prato é sempre o protagonista, mesmo que não esteja na despensa listada abaixo. Nesse caso, use os itens da despensa só como acompanhamento opcional (ex.: "e já que você tem cenoura, dá pra adicionar..."), nunca troque o pedido por outra receita baseada só no que está na despensa.
+- Quando o usuário NÃO pedir nada específico (ex.: "o que eu posso cozinhar?", "sugere algo pra hoje"), aí sim sugira receitas que possam ser feitas COM OS INGREDIENTES DA DESPENSA acima sempre que possível.
 - Se faltar 1 ou 2 ingredientes essenciais, mencione claramente o que precisa comprar.
 - Se a despensa estiver vazia, peça gentilmente para o usuário cadastrar itens em "Minha Despensa".
 - Mantenha respostas concisas (no máximo ~300 palavras), use markdown leve (negrito, listas).

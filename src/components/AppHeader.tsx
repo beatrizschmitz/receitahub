@@ -1,6 +1,6 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Menu, Moon, Sun } from "lucide-react";
+import { LogOut, Menu, Moon, Sun } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/contexts/SubscriptionContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -92,6 +92,17 @@ export function AppHeader() {
             >
               Entrar
             </Link>
+          )}
+          {/* Sair direto na barra, no mesmo lugar do "Entrar": antes só dava
+              pra sair abrindo a gaveta do menu e descendo até "Perfil". */}
+          {session && (
+            <button
+              onClick={handleLogout}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-1.5 text-sm text-cream/70 transition hover:border-blush hover:text-blush"
+            >
+              <LogOut size={14} strokeWidth={1.5} />
+              Sair
+            </button>
           )}
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger

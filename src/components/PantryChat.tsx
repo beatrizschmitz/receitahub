@@ -132,9 +132,23 @@ function extractTitle(content: string): string {
   // Tenta pegar o primeiro título markdown (# ou **)
   const markdownTitle = content.match(/^#{1,3}\s+(.+)/m)?.[1];
   if (markdownTitle) return markdownTitle.trim();
+
+  // Preferimos negrito no INÍCIO de uma linha — é assim que o chef nomeia a
+  // receita (ex.: "**Farofa de Tanajura com Farinha de Mandioca**..."). Pegar
+  // o primeiro negrito em qualquer lugar do texto (comportamento antigo)
+  // errava quando havia negrito no meio de uma frase antes do nome do prato
+  // (ex.: "Usar a **tanajura** é uma boa pedida. **Farofa de Tanajura**...").
+  for (const line of content.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || isKnownSectionHeading(trimmed)) continue;
+    const boldAtStart = trimmed.match(/^\*\*(.{3,80}?)\*\*/)?.[1];
+    if (boldAtStart) return boldAtStart.trim();
+  }
+
+  // Fallback: primeiro negrito em qualquer lugar do texto
   const boldTitle = content.match(/\*\*(.{5,60})\*\*/)?.[1];
   if (boldTitle) return boldTitle.trim();
-  // Fallback: primeira linha não vazia
+  // Último recurso: primeira linha não vazia
   const firstLine = content.split("\n").find((l) => l.trim().length > 3);
   return firstLine ? cleanMarkdownLine(firstLine) : "Receita do Chef";
 }
@@ -225,8 +239,19 @@ function extractDiet(content: string): string[] {
 }
 
 function extractCategory(content: string): string {
-  const match = content.match(/categoria\s*:\s*([^\n]+)/i);
-  return match ? cleanMarkdownLine(match[1]).toLowerCase() : "prato principal";
+  const explicit = content.match(/categoria\s*:\s*([^\n]+)/i);
+  if (explicit) return cleanMarkdownLine(explicit[1]).toLowerCase();
+
+  // O chat quase nunca escreve "Categoria:" explicitamente — nesse caso,
+  // antes caía sempre em "prato principal". Agora adivinha pelo conteúdo.
+  const lower = normalizeText(content);
+  if (/sobremesa|doce|bolo|pudim|brigadeiro|torta doce/.test(lower)) return "sobremesa";
+  if (/\bsalada\b/.test(lower)) return "salada";
+  if (/\bsopa\b|\bcaldo\b/.test(lower)) return "sopa";
+  if (/\bpao\b|\bpaes\b|padaria/.test(lower)) return "pães";
+  if (/\bmassa\b|macarrao|espaguete|lasanha|nhoque/.test(lower)) return "massa";
+  if (/lanche|sanduiche/.test(lower)) return "lanche";
+  return "prato principal";
 }
 
 function extractCalories(content: string): number | null {
@@ -596,9 +621,35 @@ export function PantryChat() {
       let textBuffer = "";
       let accumulated = "";
       let streamDone = false;
+      let stalled = false;
+
+      // O timeout de 45s no servidor (pantry-chat) só protege a primeira
+      // resposta da IA — depois que o streaming começa, um travamento no meio
+      // (a Gemini para de mandar pedaços sem fechar a conexão, algo raro mas
+      // que já vimos acontecer) não é coberto por ele, e o front ficava
+      // esperando reader.read() para sempre com "Pensando..." na tela.
+      // Por isso cada leitura tem seu próprio prazo: sem nenhum pedaço novo
+      // nesse intervalo, tratamos como travado e avisamos, em vez de deixar o
+      // chat pendurado indefinidamente.
+      const STREAM_STALL_MS = 25_000;
 
       while (!streamDone) {
-        const { done, value } = await reader.read();
+        let done: boolean | undefined;
+        let value: Uint8Array | undefined;
+        try {
+          const result = await Promise.race([
+            reader.read(),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error("stream-stall")), STREAM_STALL_MS),
+            ),
+          ]);
+          done = result.done;
+          value = result.value;
+        } catch {
+          stalled = true;
+          await reader.cancel().catch(() => {});
+          break;
+        }
         if (done) break;
         textBuffer += decoder.decode(value, { stream: true });
 
@@ -629,6 +680,18 @@ export function PantryChat() {
             textBuffer = line + "\n" + textBuffer;
             break;
           }
+        }
+      }
+
+      if (stalled) {
+        if (accumulated) {
+          // Já veio parte da resposta — mantém o que chegou e só avisa que
+          // parou no meio, em vez de apagar o que o chef já tinha dito.
+          toast.error("A resposta do chef parou no meio. Pode perguntar de novo se quiser o resto.");
+        } else {
+          // Nada chegou: tira o balão vazio "..." e avisa.
+          setMessages((prev) => prev.slice(0, -1));
+          toast.error("O chef demorou demais pra responder. Tenta de novo?");
         }
       }
     } catch (e) {

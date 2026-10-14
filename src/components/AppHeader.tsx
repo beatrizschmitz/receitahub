@@ -212,7 +212,7 @@ export function AppHeader() {
                 <p className={sectionLabelClass}>Perfil</p>
                 {session ? (
                   <div className="mt-3 flex flex-col">
-                    {/* Plano contratado: também é o caminho para a assinatura */}
+                    {/* Plano contratado: atalho para a assinatura (o link "Minha assinatura" logo abaixo é o caminho explícito) */}
                     <Link
                       to="/minha-assinatura"
                       onClick={() => setOpen(false)}
@@ -226,9 +226,16 @@ export function AppHeader() {
                       Plano {PLAN_LABEL[tier]}
                     </Link>
                     <Link
+                      to="/minha-assinatura"
+                      onClick={() => setOpen(false)}
+                      className={`mt-3 ${drawerLinkClass("/minha-assinatura")}`}
+                    >
+                      Minha assinatura
+                    </Link>
+                    <Link
                       to="/perfil"
                       onClick={() => setOpen(false)}
-                      className={`mt-3 truncate ${drawerLinkClass("/perfil")}`}
+                      className={`truncate ${drawerLinkClass("/perfil")}`}
                     >
                       {session.user.email}
                     </Link>

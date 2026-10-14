@@ -550,9 +550,7 @@ function MyRecipesPage() {
             R$ {avgSavePerMeal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <p className="text-xs text-cream/40 mt-2">
-            Cozinhando em casa, desde que você começou a usar o app (
             {costedCookedCount === 1 ? "1 refeição registrada" : `${costedCookedCount} refeições registradas`}
-            ).
           </p>
           {costedCookedCount > 0 && (
             <p className="text-[11px] text-cream/35 mt-4 pt-4 border-t border-emerald-500/10">

@@ -291,9 +291,6 @@ function PantryPage() {
             <div className="font-display text-3xl text-red-400 light:text-red-800 mt-2">
               {expiredCount}
             </div>
-            <div className="text-[10px] uppercase tracking-wider text-red-400/70 mt-1">
-              clique para filtrar
-            </div>
           </button>
         </div>
 

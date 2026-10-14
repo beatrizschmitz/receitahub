@@ -1,6 +1,6 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Menu, Moon, Sparkles, Sun } from "lucide-react";
+import { Camera, ChevronDown, Menu, Moon, Salad, Sparkles, Sun } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/contexts/SubscriptionContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -11,7 +11,14 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { PLAN_ICON, PLAN_ICONS, PLAN_LABEL } from "@/lib/plans";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { OPEN_CHAT_PHOTO_EVENT } from "@/components/PantryChat";
+import { GATED_FEATURES, PLAN_ICON, PLAN_ICONS, PLAN_LABEL, planAtLeast, type GatedFeature } from "@/lib/plans";
 
 // Navegação principal: a partir de lg (1024px) ocupa o vão entre o logo e o
 // menu, centralizada nele; abaixo disso — tablet e celular — vira a primeira
@@ -32,6 +39,13 @@ export function AppHeader() {
   const PlanIcon = PLAN_ICONS[PLAN_ICON[tier]];
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+
+  // Quem não tem o plano da função vai direto para a página de planos;
+  // quem tem, usa a função.
+  const openFeature = (feature: GatedFeature, run: () => void) => {
+    if (planAtLeast(tier, GATED_FEATURES[feature].minimum)) run();
+    else navigate({ to: "/planos" });
+  };
 
   // Deslogado sobram os itens públicos ("receitas" e "planos"), que continuam
   // no topo — a navbar não depende de sessão.
@@ -82,18 +96,53 @@ export function AppHeader() {
         {/* ml-auto é no-op quando o nav tem flex-1; serve abaixo de lg, onde o
             nav está hidden e nada mais empurra o botão para a direita. */}
         <div className="ml-auto flex items-center gap-3 shrink-0">
-          {/* Chamada pra assinar o Premium, sempre visível na barra (não só
-              dentro da gaveta) — some pra quem já é Premium, pra quem já tem
-              o que ela oferece. */}
-          {tier !== "premium" && (
-            <Link
-              to="/planos"
-              className="inline-flex items-center gap-1.5 rounded-full border border-blush/40 bg-blush/10 px-4 py-1.5 text-sm text-blush transition hover:bg-blush/20"
-            >
+          {/* Menu "Premium": atalho para as funções de assinante (plano alimentar
+              e reconhecimento por foto) e para a página de planos. Visível para
+              todos; quem já é Premium vê "Recursos". O plano é checado ao clicar:
+              se não liberar, leva para a página de planos. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger className="inline-flex items-center gap-1.5 rounded-full border border-blush/40 bg-blush/10 px-4 py-1.5 text-sm text-blush transition hover:bg-blush/20 outline-none">
               <Sparkles size={14} strokeWidth={1.5} />
-              Premium
-            </Link>
-          )}
+              {tier === "premium" ? "Recursos" : "Premium"}
+              <ChevronDown size={13} strokeWidth={1.5} />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="w-72 border-border bg-charcoal text-cream"
+            >
+              <DropdownMenuItem
+                className="flex cursor-pointer items-start gap-3 py-2.5 focus:bg-blush/10 focus:text-cream"
+                onSelect={() => {
+                  openFeature("dieta", () => navigate({ to: "/dieta" }));
+                }}
+              >
+                <Salad size={18} strokeWidth={1.5} className="mt-0.5 shrink-0 text-blush" />
+                <span className="flex flex-col">
+                  <span className="text-sm">
+                    Plano alimentar <span className="ml-1 text-xs text-blush">Premium</span>
+                  </span>
+                  <span className="text-xs text-cream/55">Cardápio de 7 dias com calorias</span>
+                </span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="flex cursor-pointer items-start gap-3 py-2.5 focus:bg-blush/10 focus:text-cream"
+                onSelect={() => {
+                  openFeature("foto", () => window.dispatchEvent(new Event(OPEN_CHAT_PHOTO_EVENT)));
+                }}
+              >
+                <Camera size={18} strokeWidth={1.5} className="mt-0.5 shrink-0 text-blush" />
+                <span className="flex flex-col">
+                  <span className="text-sm">
+                    Reconhecimento por foto{" "}
+                    <span className="ml-1 text-xs text-blush">Básico e Premium</span>
+                  </span>
+                  <span className="text-xs text-cream/55">
+                    Fotografe um ingrediente e receba uma receita
+                  </span>
+                </span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           {/* Entrar direto na barra: antes só dava pra logar abrindo a gaveta
               do menu e descendo até "Perfil" — pouco óbvio pra quem chega
               pela primeira vez. Fica visível sempre que não há sessão. */}

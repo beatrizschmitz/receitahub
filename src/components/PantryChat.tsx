@@ -37,6 +37,9 @@ type Msg = {
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/pantry-chat`;
 const PHOTO_BUCKET = "pantry-photos";
+
+/** Evento global que abre o chat do Chef Despensa já pedindo a foto. */
+export const OPEN_CHAT_PHOTO_EVENT = "receitahub:open-chat-photo";
 const MAX_IMAGE_SIDE = 1024;
 
 const normalizeText = (value: string) =>
@@ -394,6 +397,25 @@ export function PantryChat() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, open]);
+
+  // O menu "Premium" do cabeçalho abre o chat já no modo foto. O plano é
+  // checado lá (requireFeature) antes de disparar o evento; aqui só abrimos o
+  // chat e, quando o input de arquivo existir, o seletor de imagem.
+  const pendingPhotoRef = useRef(false);
+  useEffect(() => {
+    const onOpenPhoto = () => {
+      pendingPhotoRef.current = true;
+      setOpen(true);
+    };
+    window.addEventListener(OPEN_CHAT_PHOTO_EVENT, onOpenPhoto);
+    return () => window.removeEventListener(OPEN_CHAT_PHOTO_EVENT, onOpenPhoto);
+  }, []);
+  useEffect(() => {
+    if (open && pendingPhotoRef.current) {
+      pendingPhotoRef.current = false;
+      fileRef.current?.click();
+    }
+  }, [open]);
 
   async function fetchPantry() {
     if (!user) return [];

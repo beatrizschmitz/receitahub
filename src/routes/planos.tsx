@@ -1,6 +1,6 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Camera, Check, Loader2, Salad, X } from "lucide-react";
+import { Check, Loader2, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/contexts/SubscriptionContext";
 import { PLANS, PLAN_ICONS, PLAN_LABEL, type PlanTier } from "@/lib/plans";
@@ -241,28 +241,6 @@ function PlansPage() {
           })}
         </div>
 
-        <section className="mt-16 grid gap-4 md:grid-cols-2">
-          <Link
-            to="/foto"
-            className="rounded-2xl border border-border p-6 hover:border-blush/50 transition"
-          >
-            <Camera className="h-6 w-6 text-blush" strokeWidth={1.5} />
-            <h3 className="font-display italic text-xl text-blush mt-2">Reconhecimento por foto</h3>
-            <p className="text-sm text-cream/55 mt-1">
-              Fotografe um ingrediente e receba uma receita na hora. Planos básico e premium.
-            </p>
-          </Link>
-          <Link
-            to="/dieta"
-            className="rounded-2xl border border-border p-6 hover:border-blush/50 transition"
-          >
-            <Salad className="h-6 w-6 text-blush" strokeWidth={1.5} />
-            <h3 className="font-display italic text-xl text-blush mt-2">Planos de dieta</h3>
-            <p className="text-sm text-cream/55 mt-1">
-              Cardápio de 7 dias com calorias, feito para o seu objetivo. Exclusivo premium.
-            </p>
-          </Link>
-        </section>
 
         <p className="text-xs text-cream/55 mt-12">
           Projeto acadêmico — os dados do cartão são enviados por HTTPS ao gateway de pagamento e

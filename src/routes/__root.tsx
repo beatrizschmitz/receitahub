@@ -5,6 +5,7 @@ import { PlanGateProvider } from "@/contexts/PlanGateContext";
 import { ThemeProvider, THEME_INIT_SCRIPT } from "@/contexts/ThemeContext";
 import { PantryChat } from "@/components/PantryChat";
 import { AppHeader } from "@/components/AppHeader";
+import { SiteFooter } from "@/components/SiteFooter";
 import { OG_IMAGE_URL } from "@/lib/site";
 
 import appCss from "../styles.css?url";
@@ -102,6 +103,7 @@ function RootComponent() {
     <>
       <AppHeader />
       <Outlet />
+      <SiteFooter />
     </>
   );
 }

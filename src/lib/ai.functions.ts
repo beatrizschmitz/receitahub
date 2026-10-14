@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { effectiveTier } from "@/lib/plans";
+import { CATEGORIES, isValidCategory } from "@/lib/pantry-category";
 
 // Gateway de IA compatível com a API OpenAI (/v1/chat/completions).
 // Trocar de provedor é só mudar estas variáveis de ambiente — nenhum código muda.
@@ -226,4 +227,51 @@ Inclua café da manhã, almoço, lanche e jantar em cada dia.`,
     )) as DietPlan;
 
     return result;
+  });
+
+
+// Categoria de um ingrediente que o dicionário local da despensa não reconheceu.
+// Não exige plano pago (a despensa é gratuita). O cache em memória evita chamar
+// a IA de novo para o mesmo nome.
+const categoryCache = new Map<string, string>();
+
+export const categorizeIngredient = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { name: string }) => {
+    const name = String(input?.name ?? "").trim().slice(0, 80);
+    if (name.length < 2) throw new Error("Nome inválido.");
+    return { name };
+  })
+  .handler(async ({ data }): Promise<{ category: string | null }> => {
+    const key = data.name.toLowerCase();
+    const cached = categoryCache.get(key);
+    if (cached) return { category: cached };
+
+    try {
+      const result = (await callGateway(
+        [
+          {
+            role: "system",
+            content:
+              "Você classifica itens de despensa e cozinha brasileira em categorias. Responda SOMENTE com JSON válido, sem markdown.",
+          },
+          {
+            role: "user",
+            content: `Item digitado: "${data.name}"
+Escolha a categoria que melhor descreve esse item, usando EXATAMENTE um destes valores:
+${CATEGORIES.join(", ")}
+Se o item não for um alimento ou bebida reconhecível, use "Outros".
+Formato: {"category":"..."}`,
+          },
+        ],
+        0,
+      )) as { category?: string };
+      if (isValidCategory(result.category)) {
+        categoryCache.set(key, result.category);
+        return { category: result.category };
+      }
+    } catch (e) {
+      console.error("categorizeIngredient", e);
+    }
+    return { category: null };
   });

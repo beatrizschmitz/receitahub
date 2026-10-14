@@ -1,8 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Package } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { CATEGORIES, suggestCategory } from "@/lib/pantry-category";
+import { categorizeIngredient } from "@/lib/ai.functions";
 
 export const Route = createFileRoute("/minha-despensa")({
   component: PantryPage,
@@ -18,32 +21,6 @@ export const Route = createFileRoute("/minha-despensa")({
   }),
 });
 
-const CATEGORIES = [
-  "Grãos",
-  "Cereais",
-  "Massas",
-  "Frutas",
-  "Vegetais",
-  "Legumes",
-  "Verduras",
-  "Proteínas",
-  "Carnes",
-  "Peixes e Frutos do Mar",
-  "Laticínios",
-  "Ovos",
-  "Pães",
-  "Ervas",
-  "Temperos",
-  "Óleos",
-  "Molhos e Condimentos",
-  "Enlatados",
-  "Congelados",
-  "Doces e Açúcares",
-  "Bebidas",
-  "Snacks",
-  "Outros",
-];
-
 type Item = {
   id: string;
   name: string;
@@ -53,85 +30,6 @@ type Item = {
   purchased_at: string | null;
   expires_at: string | null;
 };
-
-// Associações nome -> categoria mais comuns na despensa brasileira. É uma
-// sugestão local (sem IA): o campo continua editável e, entre as
-// palavras-chave que baterem no nome digitado, vence a mais específica
-// (ver suggestCategory).
-const CATEGORY_KEYWORDS: Array<[string[], string]> = [
-  [["arroz", "aveia", "granola", "quinoa", "cevada", "milho de pipoca"], "Cereais"],
-  [["feijao", "lentilha", "grao de bico", "ervilha seca", "soja em grao"], "Grãos"],
-  [["macarrao", "espaguete", "lasanha", "nhoque", "massa", "talharim", "parafuso"], "Massas"],
-  [
-    [
-      "banana", "maca", "laranja", "uva", "manga", "abacaxi", "morango", "limao",
-      "mamao", "melancia", "pera", "abacate", "kiwi", "pessego", "ameixa", "melao",
-      "tangerina", "goiaba", "coco",
-    ],
-    "Frutas",
-  ],
-  [
-    [
-      "tomate", "batata", "cebola", "alho", "cenoura", "abobrinha", "pepino",
-      "pimentao", "beterraba", "abobora", "chuchu", "mandioca", "batata doce",
-      "milho verde", "vagem",
-    ],
-    "Legumes",
-  ],
-  [["alface", "couve", "espinafre", "rucula", "brocolis", "repolho", "agriao", "acelga"], "Verduras"],
-  [
-    [
-      "frango", "carne moida", "carne bovina", "file", "bife", "costela",
-      "picanha", "linguica", "bacon", "peru", "carne suina", "lombo", "presunto",
-    ],
-    "Carnes",
-  ],
-  [["peixe", "salmao", "tilapia", "camarao", "atum fresco", "bacalhau", "lula", "polvo", "sardinha fresca"], "Peixes e Frutos do Mar"],
-  [["leite", "queijo", "iogurte", "manteiga", "requeijao", "creme de leite", "nata"], "Laticínios"],
-  [["ovo"], "Ovos"],
-  [["pao", "baguete", "torrada", "wrap", "tortilha"], "Pães"],
-  [["manjericao", "salsa", "cebolinha", "coentro", "oregano", "alecrim", "hortela", "tomilho", "louro"], "Ervas"],
-  [["sal", "pimenta do reino", "curcuma", "cominho", "canela", "paprica", "curry", "colorau", "noz moscada", "tempero"], "Temperos"],
-  [["azeite", "oleo de soja", "oleo de girassol", "oleo de coco", "oleo"], "Óleos"],
-  [["ketchup", "maionese", "mostarda", "molho de tomate", "shoyu", "molho barbecue", "vinagre", "molho"], "Molhos e Condimentos"],
-  [["enlatado", "lata de", "milho em lata", "ervilha em lata", "sardinha em lata"], "Enlatados"],
-  [["congelado", "sorvete", "nuggets", "polpa de fruta"], "Congelados"],
-  [["acucar", "chocolate", "doce", "mel", "achocolatado", "geleia", "bolo pronto"], "Doces e Açúcares"],
-  [["agua", "suco", "refrigerante", "cafe", "cha", "cerveja", "vinho", "refresco"], "Bebidas"],
-  [["biscoito", "salgadinho", "pipoca", "amendoim", "castanha", "bolacha", "chips"], "Snacks"],
-  [["whey", "tofu", "seitan", "proteina"], "Proteínas"],
-];
-
-function normalizeItemName(value: string): string {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-}
-
-function suggestCategory(name: string): string | null {
-  const normalized = normalizeItemName(name);
-  if (!normalized.trim()) return null;
-  const words = normalized.split(/\s+/).filter(Boolean);
-
-  // Entre todas as palavras-chave que batem, vence a mais específica (mais
-  // longa) — assim "filé de salmão" cai em Peixes (por "salmao", 6 letras) e
-  // não em Carnes (por "file", 4 letras), e "óleo de coco" cai em Óleos (por
-  // "oleo de coco") e não em Frutas (por "coco"). Palavras-chave de uma
-  // palavra só batem como palavra inteira (evita, por exemplo, "sal"
-  // casar dentro de "salsicha").
-  let best: { category: string; keywordLength: number } | null = null;
-  for (const [keywords, category] of CATEGORY_KEYWORDS) {
-    for (const keyword of keywords) {
-      const isSingleWord = !keyword.includes(" ");
-      const matches = isSingleWord ? words.includes(keyword) : normalized.includes(keyword);
-      if (matches && (!best || keyword.length > best.keywordLength)) {
-        best = { category, keywordLength: keyword.length };
-      }
-    }
-  }
-  return best?.category ?? null;
-}
 
 function daysBetween(fromISO: string, toISO: string) {
   const a = new Date(fromISO + "T00:00:00");
@@ -175,17 +73,56 @@ function PantryPage() {
   // interage com o <select>, e a sugestão para de sobrescrever a escolha dele.
   const [categoryAuto, setCategoryAuto] = useState(true);
   const [quantityError, setQuantityError] = useState(false);
+  // Espelho de categoryAuto para o callback assíncrono da IA ler o valor atual.
+  const categoryAutoRef = useRef(true);
+  useEffect(() => {
+    categoryAutoRef.current = categoryAuto;
+  }, [categoryAuto]);
+
+  const runCategorize = useServerFn(categorizeIngredient);
+  const aiTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [categorizing, setCategorizing] = useState(false);
 
   const handleNameChange = (name: string) => {
-    setNewItem((prev) => {
-      if (!categoryAuto) return { ...prev, name };
-      // Sempre bate com alguma categoria enquanto a pessoa digita: usa a
-      // sugestão quando reconhece o ingrediente, cai em "Outros" quando não
-      // reconhece, e some de novo se o campo de nome for esvaziado.
-      if (!name.trim()) return { ...prev, name, category: "" };
-      const suggested = suggestCategory(name) ?? "Outros";
-      return { ...prev, name, category: suggested };
-    });
+    if (aiTimer.current) clearTimeout(aiTimer.current);
+    setCategorizing(false);
+
+    if (!categoryAuto) {
+      setNewItem((prev) => ({ ...prev, name }));
+      return;
+    }
+    if (!name.trim()) {
+      setNewItem((prev) => ({ ...prev, name, category: "" }));
+      return;
+    }
+
+    // 1) Dicionário local: instantâneo e gratuito.
+    const local = suggestCategory(name);
+    if (local) {
+      setNewItem((prev) => ({ ...prev, name, category: local }));
+      return;
+    }
+
+    // 2) Não reconheceu: mostra "Outros" já e, depois que a pessoa para de
+    // digitar, pergunta à IA. A resposta só vale se o nome ainda for o mesmo e
+    // a categoria não tiver sido escolhida à mão nesse meio tempo.
+    setNewItem((prev) => ({ ...prev, name, category: "Outros" }));
+    if (name.trim().length < 3) return;
+    const asked = name.trim();
+    aiTimer.current = setTimeout(async () => {
+      setCategorizing(true);
+      try {
+        const { category } = await runCategorize({ data: { name: asked } });
+        if (!category) return;
+        setNewItem((prev) =>
+          prev.name.trim() === asked && categoryAutoRef.current ? { ...prev, category } : prev,
+        );
+      } catch (e) {
+        console.error("categorizar ingrediente", e);
+      } finally {
+        setCategorizing(false);
+      }
+    }, 700);
   };
 
   useEffect(() => {
@@ -414,7 +351,9 @@ function PantryPage() {
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="invisible text-[11px] px-1">Categoria</span>
+              <span className="text-[11px] px-1 text-cream/40 h-[14px] leading-[14px]">
+                {categorizing ? "identificando…" : ""}
+              </span>
               <select
                 required
                 value={newItem.category}

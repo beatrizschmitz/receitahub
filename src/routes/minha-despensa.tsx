@@ -55,8 +55,9 @@ type Item = {
 };
 
 // Associações nome -> categoria mais comuns na despensa brasileira. É uma
-// sugestão local (sem IA): o campo continua editável e o primeiro grupo cuja
-// palavra-chave aparece no nome digitado vence.
+// sugestão local (sem IA): o campo continua editável e, entre as
+// palavras-chave que baterem no nome digitado, vence a mais específica
+// (ver suggestCategory).
 const CATEGORY_KEYWORDS: Array<[string[], string]> = [
   [["arroz", "aveia", "granola", "quinoa", "cevada", "milho de pipoca"], "Cereais"],
   [["feijao", "lentilha", "grao de bico", "ervilha seca", "soja em grao"], "Grãos"],
@@ -75,7 +76,7 @@ const CATEGORY_KEYWORDS: Array<[string[], string]> = [
       "pimentao", "beterraba", "abobora", "chuchu", "mandioca", "batata doce",
       "milho verde", "vagem",
     ],
-    "Vegetais",
+    "Legumes",
   ],
   [["alface", "couve", "espinafre", "rucula", "brocolis", "repolho", "agriao", "acelga"], "Verduras"],
   [
@@ -111,10 +112,25 @@ function normalizeItemName(value: string): string {
 function suggestCategory(name: string): string | null {
   const normalized = normalizeItemName(name);
   if (!normalized.trim()) return null;
+  const words = normalized.split(/\s+/).filter(Boolean);
+
+  // Entre todas as palavras-chave que batem, vence a mais específica (mais
+  // longa) — assim "filé de salmão" cai em Peixes (por "salmao", 6 letras) e
+  // não em Carnes (por "file", 4 letras), e "óleo de coco" cai em Óleos (por
+  // "oleo de coco") e não em Frutas (por "coco"). Palavras-chave de uma
+  // palavra só batem como palavra inteira (evita, por exemplo, "sal"
+  // casar dentro de "salsicha").
+  let best: { category: string; keywordLength: number } | null = null;
   for (const [keywords, category] of CATEGORY_KEYWORDS) {
-    if (keywords.some((k) => normalized.includes(k))) return category;
+    for (const keyword of keywords) {
+      const isSingleWord = !keyword.includes(" ");
+      const matches = isSingleWord ? words.includes(keyword) : normalized.includes(keyword);
+      if (matches && (!best || keyword.length > best.keywordLength)) {
+        best = { category, keywordLength: keyword.length };
+      }
+    }
   }
-  return null;
+  return best?.category ?? null;
 }
 
 function daysBetween(fromISO: string, toISO: string) {
@@ -163,8 +179,12 @@ function PantryPage() {
   const handleNameChange = (name: string) => {
     setNewItem((prev) => {
       if (!categoryAuto) return { ...prev, name };
-      const suggested = suggestCategory(name);
-      return suggested ? { ...prev, name, category: suggested } : { ...prev, name };
+      // Sempre bate com alguma categoria enquanto a pessoa digita: usa a
+      // sugestão quando reconhece o ingrediente, cai em "Outros" quando não
+      // reconhece, e some de novo se o campo de nome for esvaziado.
+      if (!name.trim()) return { ...prev, name, category: "" };
+      const suggested = suggestCategory(name) ?? "Outros";
+      return { ...prev, name, category: suggested };
     });
   };
 
@@ -228,9 +248,10 @@ function PantryPage() {
     }
     setQuantityError(false);
 
-    // Calcula expires_in (dias até vencer) se houver expires_at
+    // Calcula expires_in (dias até vencer) se houver expires_at. Pode ser
+    // negativo — significa que o item já venceu (vencimento retroativo).
     const expiresIn = newItem.expires_at
-      ? Math.max(0, daysBetween(newItem.purchased_at || today, newItem.expires_at))
+      ? daysBetween(newItem.purchased_at || today, newItem.expires_at)
       : 7;
 
     const { data, error } = await supabase
@@ -452,7 +473,6 @@ function PantryPage() {
               <input
                 type="date"
                 value={newItem.expires_at}
-                min={newItem.purchased_at || todayISO()}
                 onChange={(e) => setNewItem({ ...newItem, expires_at: e.target.value })}
                 className="h-12 bg-charcoal border border-border rounded-xl px-4 text-cream focus:outline-none focus:border-blush/50"
               />

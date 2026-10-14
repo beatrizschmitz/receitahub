@@ -1,10 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { BookOpen, Clock, Download, FileText, Flame, Gauge, Star, Utensils, Wallet } from "lucide-react";
+import { BookOpen, Check, Clock, Download, FileText, Flame, Gauge, Star, Utensils, Wallet } from "lucide-react";
 import { RecipeCover, RecipePhotoCredit } from "@/components/RecipeCover";
 import { PortionSlider } from "@/components/PortionSlider";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/minhas-receitas")({
   component: MyRecipesPage,
@@ -33,12 +34,13 @@ type CalorieEntry = {
 };
 
 // ─── Modal de detalhes da receita salva ──────────────────────────────────────
-function RecipeDetailModal({ recipe, onClose, onDelete, onFavorite, onRate, onSaveNotes, onAteIt }: {
+function RecipeDetailModal({ recipe, onClose, onDelete, onFavorite, onRate, onSaveNotes, onAteIt, justAte }: {
   recipe: UserRecipe; onClose: () => void;
   onDelete: (id: string) => void; onFavorite: (id: string, v: boolean) => void;
   onRate: (id: string, rating: number) => void;
   onSaveNotes: (id: string, notes: string) => void;
   onAteIt: (r: UserRecipe) => void;
+  justAte: boolean;
 }) {
   const [servings, setServings] = useState(4);
   const [notesDraft, setNotesDraft] = useState(recipe.notes ?? "");
@@ -124,9 +126,20 @@ function RecipeDetailModal({ recipe, onClose, onDelete, onFavorite, onRate, onSa
               {recipe.calories_per_serving && (
                 <button
                   onClick={() => onAteIt(recipe)}
-                  className="px-4 py-2 rounded-full bg-blush text-charcoal text-sm font-medium hover:bg-blush-deep transition"
+                  disabled={justAte}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition inline-flex items-center gap-1.5 ${
+                    justAte
+                      ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                      : "bg-blush text-charcoal hover:bg-blush-deep"
+                  }`}
                 >
-                  + Comi isso ({recipe.calories_per_serving} kcal)
+                  {justAte ? (
+                    <>
+                      <Check className="h-4 w-4" strokeWidth={2} /> Registrado!
+                    </>
+                  ) : (
+                    `+ Comi isso (${recipe.calories_per_serving} kcal)`
+                  )}
                 </button>
               )}
             </div>
@@ -316,6 +329,10 @@ function MyRecipesPage() {
   const [showImport, setShowImport] = useState(false);
   const [filter, setFilter] = useState<"todas" | "favoritas" | "melhor avaliadas" | "mais feitas">("todas");
   const [calorieEntries, setCalorieEntries] = useState<CalorieEntry[]>([]);
+  // "Comi isso" não dava nenhum sinal de que funcionou — parecia que o clique
+  // não tinha feito nada. Guarda o id de quem acabou de ser registrado pra
+  // mostrar um check passageiro no botão (some sozinho em 1.8s).
+  const [justAteId, setJustAteId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !session) navigate({ to: "/login" });
@@ -404,7 +421,7 @@ function MyRecipesPage() {
     ev?.stopPropagation();
     const calories = recipe.calories_per_serving;
     if (!calories) {
-      alert("Essa receita ainda não tem calorias estimadas. Salve uma nova ou edite manualmente.");
+      toast.error("Essa receita ainda não tem calorias estimadas. Salve uma nova ou edite manualmente.");
       return;
     }
     const { data, error } = await supabase.from("calorie_log").insert({
@@ -419,6 +436,12 @@ function MyRecipesPage() {
       const next = (recipe.times_cooked ?? 0) + 1;
       await supabase.from("user_recipes").update({ times_cooked: next }).eq("id", recipe.id);
       setRecipes((prev) => prev.map((r) => r.id === recipe.id ? { ...r, times_cooked: next } : r));
+      toast.success(`+${calories} kcal registradas!`);
+      setJustAteId(recipe.id);
+      setTimeout(() => setJustAteId((prev) => (prev === recipe.id ? null : prev)), 1800);
+    } else {
+      console.error(error);
+      toast.error("Não consegui registrar. Tente de novo.");
     }
   }
 
@@ -463,10 +486,15 @@ function MyRecipesPage() {
     const diff = delivery - home;
     return sum + (diff > 0 ? diff * times : 0);
   }, 0);
-  const recipesWithCost = recipes.filter((r) => r.cost_home_brl && r.cost_delivery_brl);
-  const avgSavePerMeal = recipesWithCost.length
-    ? recipesWithCost.reduce((s, r) => s + (Number(r.cost_delivery_brl) - Number(r.cost_home_brl)), 0) / recipesWithCost.length
-    : 0;
+  // Antes contava toda receita salva com preço cadastrado, mesmo as nunca
+  // cozinhadas — a "média por refeição" ficava inflada/diferente do "total
+  // economizado" ao lado, que só soma o que foi de fato preparado. Agora as
+  // duas usam a mesma base: só receitas com times_cooked > 0 e preço.
+  const recipesWithCost = recipes.filter(
+    (r) => r.cost_home_brl && r.cost_delivery_brl && (r.times_cooked ?? 0) > 0,
+  );
+  const costedCookedCount = recipesWithCost.reduce((s, r) => s + (r.times_cooked ?? 0), 0);
+  const avgSavePerMeal = costedCookedCount > 0 ? totalSavings / costedCookedCount : 0;
 
   let displayed = recipes;
   if (filter === "favoritas") displayed = favorites;
@@ -519,22 +547,22 @@ function MyRecipesPage() {
         <div className="mt-6 bg-gradient-to-br from-emerald-500/15 to-emerald-500/5 light:from-emerald-50 light:to-emerald-50/50 border border-emerald-500/30 light:border-emerald-600/40 rounded-3xl p-6">
           <div className="flex items-start justify-between flex-wrap gap-4">
             <div>
-              <div className="text-sm text-emerald-400 light:text-emerald-800 mb-2">Economia cozinhando em casa</div>
+              <div className="text-sm text-emerald-400 light:text-emerald-800 mb-2">Economia acumulada cozinhando em casa</div>
               <div className="font-display text-5xl text-cream">
                 R$ {totalSavings.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
               <p className="text-xs text-cream/40 mt-2">
-                Total economizado vs pedir delivery, com base nas {cookedCount} refeições que você marcou como feitas.
+                Total economizado vs pedir delivery desde que você começou a usar o app, com base nas {costedCookedCount} refeições feitas com preço estimado disponível.
               </p>
             </div>
             {avgSavePerMeal > 0 && (
               <div className="min-w-[200px] bg-charcoal/40 rounded-2xl p-4 space-y-2">
-                <div className="text-[11px] text-cream/50">Média por refeição</div>
+                <div className="text-[11px] text-cream/50">Economia média por refeição</div>
                 <div className="font-display text-3xl text-emerald-300">
                   R$ {avgSavePerMeal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
                 <div className="text-[11px] text-cream/40">
-                  Estimativas da IA — preços médios BR 2025.
+                  Estimativa da IA com base em pesquisas de preço médio de refeição no Brasil (Mosaiclab 2023, Ticket/Edenred 2022).
                 </div>
               </div>
             )}
@@ -612,10 +640,15 @@ function MyRecipesPage() {
                     {r.calories_per_serving && (
                       <button
                         onClick={(ev) => handleAteIt(r, ev)}
-                        className="ml-auto text-[11px] px-3 py-1 rounded-full border border-blush/40 text-blush hover:bg-blush hover:text-charcoal transition"
+                        disabled={justAteId === r.id}
                         title="Registrar consumo de hoje"
+                        className={`ml-auto text-[11px] px-3 py-1 rounded-full border transition inline-flex items-center gap-1 ${
+                          justAteId === r.id
+                            ? "border-green-500/40 bg-green-500/15 text-green-400"
+                            : "border-blush/40 text-blush hover:bg-blush hover:text-charcoal"
+                        }`}
                       >
-                        + Comi isso
+                        {justAteId === r.id ? (<><Check className="h-3 w-3" strokeWidth={2} /> Registrado!</>) : "+ Comi isso"}
                       </button>
                     )}
                   </div>
@@ -645,6 +678,7 @@ function MyRecipesPage() {
           onRate={handleRate}
           onSaveNotes={handleNotes}
           onAteIt={(r) => handleAteIt(r)}
+          justAte={justAteId === selectedRecipe.id}
         />
       )}
       {showImport && <ImportModal onClose={() => setShowImport(false)} onImport={handleImport} />}

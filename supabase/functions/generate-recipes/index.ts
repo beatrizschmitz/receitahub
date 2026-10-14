@@ -353,7 +353,15 @@ Deno.serve(async (req) => {
     const variationPart = `Surpreenda com receitas variadas e criativas — evite os clássicos óbvios. Inspire-se em estilos como: ${picks}. Token de variação (use para diversificar, não cite): ${variationSeed}.`;
     // image_query vai para um banco de fotos internacional (Pexels), que só
     // indexa em inglês — por isso é o único campo que foge do português.
-    const systemPrompt = "Você é um chef brasileiro especialista e criativo. Sempre varia as sugestões e chama a função return_recipes exatamente uma vez. Responda em português do Brasil, com uma exceção: o campo image_query deve ser em INGLÊS, com 2 a 4 palavras, descrevendo o prato do jeito que um banco de fotos internacional encontraria (ex.: escondidinho de carne seca -> \"shepherds pie casserole\"; temaki -> \"sushi hand roll\"; moqueca -> \"seafood stew bowl\"). Prefira o tipo de prato ao nome regional. O modo de preparo deve ser uma única string com até 5 passos numerados separados por quebras de linha.";
+    // cost_home_brl / cost_delivery_brl: antes só existiam pra receitas
+    // salvas pelo chat ou importadas — as sugeridas aqui (o caminho mais
+    // comum de salvar) nunca tinham preço, e o painel de economia em
+    // minhas-receitas.tsx ficava zerado ou com contas que não fechavam pra
+    // quem só usava esse caminho. cost_delivery_brl é ancorado numa faixa
+    // real (pesquisas "Preço Médio da Refeição Fora do Lar", Mosaiclab 2023,
+    // e Ticket/Edenred 2022, ~R$40-47 por refeição; ajustado pela inflação
+    // até 2026), não um chute livre da IA.
+    const systemPrompt = "Você é um chef brasileiro especialista e criativo. Sempre varia as sugestões e chama a função return_recipes exatamente uma vez. Responda em português do Brasil, com uma exceção: o campo image_query deve ser em INGLÊS, com 2 a 4 palavras, descrevendo o prato do jeito que um banco de fotos internacional encontraria (ex.: escondidinho de carne seca -> \"shepherds pie casserole\"; temaki -> \"sushi hand roll\"; moqueca -> \"seafood stew bowl\"). Prefira o tipo de prato ao nome regional. O modo de preparo deve ser uma única string com até 5 passos numerados separados por quebras de linha. Para cost_home_brl, estime o custo real dos ingredientes da receita (preços de supermercado brasileiro) dividido pelas porções. Para cost_delivery_brl, ancore em pesquisas reais de preço de refeição fora de casa no Brasil (R$40,64 em 2022 e R$46,60 em 2023, segundo levantamentos Ticket/Edenred e Mosaiclab — já ajustados pela inflação até 2026, isso fica em torno de R$48 a R$58 por porção), variando um pouco conforme a complexidade do prato — nunca abaixo de R$35.";
     const userPrompt = `Gere exatamente 6 receitas ${categoryPart}. ${dietPart} ${ingredientsPart} ${searchPart} ${excludePart} ${variationPart}`;
 
     const aiRes = await callAI({
@@ -395,8 +403,10 @@ Deno.serve(async (req) => {
                         required: ["calories", "protein", "carbs", "fat"],
                         additionalProperties: false,
                       },
+                      cost_home_brl: { type: "number", description: "Custo estimado dos ingredientes por porção, em reais" },
+                      cost_delivery_brl: { type: "number", description: "Custo estimado de pedir essa refeição pronta (delivery/restaurante) por porção, em reais, ancorado em pesquisas reais de preço — nunca abaixo de 35" },
                     },
-                    required: ["id", "title", "description", "category", "time", "time_minutes", "difficulty", "diet", "servings", "ingredients", "instructions", "nutrition", "image_query"],
+                    required: ["id", "title", "description", "category", "time", "time_minutes", "difficulty", "diet", "servings", "ingredients", "instructions", "nutrition", "image_query", "cost_home_brl", "cost_delivery_brl"],
                     additionalProperties: false,
                   },
                 },

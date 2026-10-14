@@ -1,6 +1,6 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { LogOut, Menu, Moon, Sun } from "lucide-react";
+import { Menu, Moon, Sparkles, Sun } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/contexts/SubscriptionContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -82,6 +82,18 @@ export function AppHeader() {
         {/* ml-auto é no-op quando o nav tem flex-1; serve abaixo de lg, onde o
             nav está hidden e nada mais empurra o botão para a direita. */}
         <div className="ml-auto flex items-center gap-3 shrink-0">
+          {/* Chamada pra assinar o Premium, sempre visível na barra (não só
+              dentro da gaveta) — some pra quem já é Premium, pra quem já tem
+              o que ela oferece. */}
+          {tier !== "premium" && (
+            <Link
+              to="/planos"
+              className="inline-flex items-center gap-1.5 rounded-full border border-blush/40 bg-blush/10 px-4 py-1.5 text-sm text-blush transition hover:bg-blush/20"
+            >
+              <Sparkles size={14} strokeWidth={1.5} />
+              Premium
+            </Link>
+          )}
           {/* Entrar direto na barra: antes só dava pra logar abrindo a gaveta
               do menu e descendo até "Perfil" — pouco óbvio pra quem chega
               pela primeira vez. Fica visível sempre que não há sessão. */}
@@ -92,17 +104,6 @@ export function AppHeader() {
             >
               Entrar
             </Link>
-          )}
-          {/* Sair direto na barra, no mesmo lugar do "Entrar": antes só dava
-              pra sair abrindo a gaveta do menu e descendo até "Perfil". */}
-          {session && (
-            <button
-              onClick={handleLogout}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-1.5 text-sm text-cream/70 transition hover:border-blush hover:text-blush"
-            >
-              <LogOut size={14} strokeWidth={1.5} />
-              Sair
-            </button>
           )}
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger

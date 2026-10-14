@@ -1,8 +1,10 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { BookOpen, Package, Sparkles } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { deleteAccount } from "@/lib/account.functions";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,6 +16,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+
+const DELETE_ACCOUNT_CONFIRM_WORD = "EXCLUIR";
 
 export const Route = createFileRoute("/perfil")({
   component: ProfilePage,
@@ -33,11 +37,14 @@ function ProfilePage() {
   const navigate = useNavigate();
 
   const [displayName, setDisplayName] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState("");
-  const [avatarBroken, setAvatarBroken] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [confirmWipe, setConfirmWipe] = useState(false);
+  const [wipingData, setWipingData] = useState(false);
+  const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
+  const [deleteAccountText, setDeleteAccountText] = useState("");
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const callDeleteAccount = useServerFn(deleteAccount);
 
   // Stats
   const [pantryCount, setPantryCount] = useState(0);
@@ -58,7 +65,7 @@ function ProfilePage() {
         await Promise.all([
           supabase
             .from("profiles")
-            .select("display_name, avatar_url")
+            .select("display_name")
             .eq("id", session.user.id)
             .maybeSingle(),
           supabase
@@ -77,7 +84,6 @@ function ProfilePage() {
         ]);
       if (profile) {
         setDisplayName(profile.display_name ?? "");
-        setAvatarUrl(profile.avatar_url ?? "");
       }
       setPantryCount(pCount ?? 0);
       setRecipesCount(rCount ?? 0);
@@ -107,16 +113,11 @@ function ProfilePage() {
       toast.error("Nome muito longo (máx 80 caracteres)");
       return;
     }
-    if (avatarUrl && avatarUrl.length > 500) {
-      toast.error("URL do avatar muito longa");
-      return;
-    }
     setSaving(true);
     const { error } = await supabase.from("profiles").upsert(
       {
         id: session.user.id,
         display_name: trimmed,
-        avatar_url: avatarUrl.trim() || null,
       },
       { onConflict: "id" },
     );
@@ -134,19 +135,50 @@ function ProfilePage() {
     navigate({ to: "/" });
   };
 
-  const handleDeleteAccount = async () => {
-    setConfirmWipe(false);
-    const [{ error: e1 }, { error: e2 }] = await Promise.all([
-      supabase.from("pantry_items").delete().eq("user_id", session.user.id),
-      supabase.from("user_recipes").delete().eq("user_id", session.user.id),
-    ]);
-    if (e1 || e2) {
-      toast.error("Erro ao Apagar dados");
-    } else {
-      toast.success("Todos os seus dados foram apagados");
-      setPantryCount(0);
-      setRecipesCount(0);
-      setFavoritesCount(0);
+  // Apaga despensa e receitas, mas mantém a conta/login — diferente de
+  // handleDeleteAccountPermanently, que exclui a conta de verdade.
+  const handleWipeData = async () => {
+    setWipingData(true);
+    try {
+      const [{ error: e1 }, { error: e2 }, { error: e3 }] = await Promise.all([
+        supabase.from("pantry_items").delete().eq("user_id", session.user.id),
+        supabase.from("user_recipes").delete().eq("user_id", session.user.id),
+        supabase.from("calorie_log").delete().eq("user_id", session.user.id),
+      ]);
+      if (e1 || e2 || e3) {
+        toast.error("Erro ao Apagar dados");
+      } else {
+        toast.success("Todos os seus dados foram apagados");
+        setPantryCount(0);
+        setRecipesCount(0);
+        setFavoritesCount(0);
+      }
+    } finally {
+      setWipingData(false);
+      setConfirmWipe(false);
+    }
+  };
+
+  // Exclusão de conta de verdade: some com o login também, não só os dados.
+  // Irreversível — por isso exige digitar a palavra de confirmação antes.
+  const handleDeleteAccountPermanently = async () => {
+    if (deleteAccountText.trim().toUpperCase() !== DELETE_ACCOUNT_CONFIRM_WORD) return;
+    setDeletingAccount(true);
+    try {
+      const result = await callDeleteAccount();
+      if (result.success) {
+        setConfirmDeleteAccount(false);
+        toast.success("Sua conta foi excluída.");
+        await signOut();
+        navigate({ to: "/" });
+      } else {
+        toast.error(result.message);
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Não consegui excluir sua conta. Tente novamente.");
+    } finally {
+      setDeletingAccount(false);
     }
   };
 
@@ -196,18 +228,9 @@ function ProfilePage() {
               <h2 className="font-display text-2xl text-cream mb-6">Informações pessoais</h2>
 
               <div className="flex items-center gap-6 mb-8">
-                {avatarUrl && !avatarBroken ? (
-                  <img
-                    src={avatarUrl}
-                    alt="avatar"
-                    className="h-20 w-20 rounded-full object-cover border-2 border-blush/40"
-                    onError={() => setAvatarBroken(true)}
-                  />
-                ) : (
-                  <div className="h-20 w-20 rounded-full bg-blush/20 border-2 border-blush/40 flex items-center justify-center font-display text-3xl text-blush">
-                    {initial}
-                  </div>
-                )}
+                <div className="h-20 w-20 rounded-full bg-blush/20 border-2 border-blush/40 flex items-center justify-center font-display text-3xl text-blush">
+                  {initial}
+                </div>
                 <div>
                   <div className="text-cream font-medium">{displayName || "Sem nome"}</div>
                   <div className="text-cream/50 text-sm">{session.user.email}</div>
@@ -222,21 +245,6 @@ function ProfilePage() {
                     onChange={(e) => setDisplayName(e.target.value)}
                     maxLength={80}
                     placeholder="Como devemos te chamar?"
-                    className="w-full bg-charcoal border border-border rounded-xl px-4 py-3 text-cream placeholder:text-cream/40 focus:outline-none focus:border-blush/50"
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="text-sm text-cream/50 mb-2 block">URL do avatar (opcional)</span>
-                  <input
-                    type="url"
-                    value={avatarUrl}
-                    onChange={(e) => {
-                      setAvatarUrl(e.target.value);
-                      setAvatarBroken(false);
-                    }}
-                    maxLength={500}
-                    placeholder="https://..."
                     className="w-full bg-charcoal border border-border rounded-xl px-4 py-3 text-cream placeholder:text-cream/40 focus:outline-none focus:border-blush/50"
                   />
                 </label>
@@ -318,7 +326,7 @@ function ProfilePage() {
                   <div>
                     <div className="text-blush text-sm">Apagar todos os dados</div>
                     <div className="text-cream/50 text-xs">
-                      Remove sua despensa e receitas. Não pode ser desfeito.
+                      Remove sua despensa, receitas e histórico de calorias. Não pode ser desfeito.
                     </div>
                   </div>
                   <button
@@ -326,6 +334,22 @@ function ProfilePage() {
                     className="px-4 py-2 rounded-full border border-blush/40 text-blush hover:bg-blush/10 transition text-sm"
                   >
                     Apagar dados
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between py-4">
+                  <div>
+                    <div className="text-red-400 text-sm">Excluir minha conta</div>
+                    <div className="text-cream/50 text-xs">
+                      Exclui a conta por completo — despensa, receitas, assinatura e o login.
+                      Diferente de "Apagar dados", você não poderá mais entrar.
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setConfirmDeleteAccount(true)}
+                    className="px-4 py-2 rounded-full border border-red-500/40 text-red-400 hover:bg-red-500/10 transition text-sm shrink-0"
+                  >
+                    Excluir conta
                   </button>
                 </div>
               </div>
@@ -341,22 +365,77 @@ function ProfilePage() {
               Apagar todos os seus dados?
             </AlertDialogTitle>
             <AlertDialogDescription className="text-cream/60 leading-relaxed">
-              Sua despensa e todas as suas receitas salvas serão removidas. Essa ação não pode ser
-              desfeita.
+              Sua despensa, suas receitas salvas e seu histórico de calorias consumidas serão
+              removidos. Essa ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <AlertDialogFooter className="mt-2 gap-2 sm:gap-0">
+            <AlertDialogCancel
+              disabled={wipingData}
+              className="rounded-full border border-border bg-transparent px-6 py-2.5 text-sm text-cream/70 transition hover:border-cream/40 hover:bg-transparent hover:text-cream disabled:opacity-40 disabled:pointer-events-none"
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={wipingData}
+              onClick={(e) => {
+                e.preventDefault();
+                void handleWipeData();
+              }}
+              className="rounded-full bg-red-500/90 px-6 py-2.5 text-sm text-cream transition hover:bg-red-500 disabled:opacity-60 disabled:pointer-events-none"
+            >
+              {wipingData ? "apagando..." : "Apagar tudo"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={confirmDeleteAccount}
+        onOpenChange={(open) => {
+          setConfirmDeleteAccount(open);
+          if (!open) setDeleteAccountText("");
+        }}
+      >
+        <AlertDialogContent className="max-w-md border-border bg-charcoal text-cream sm:rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display italic text-2xl font-normal text-red-400">
+              Excluir sua conta?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-cream/60 leading-relaxed">
+              Isso exclui sua conta por completo: despensa, receitas, assinatura e o acesso ao
+              receitahub. Essa ação é permanente e não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <label className="block mt-2">
+            <span className="text-sm text-cream/50 mb-2 block">
+              Digite <span className="text-red-400 font-medium">{DELETE_ACCOUNT_CONFIRM_WORD}</span>{" "}
+              para confirmar
+            </span>
+            <input
+              autoFocus
+              value={deleteAccountText}
+              onChange={(e) => setDeleteAccountText(e.target.value)}
+              placeholder={DELETE_ACCOUNT_CONFIRM_WORD}
+              className="w-full bg-charcoal-light border border-border rounded-xl px-4 py-3 text-cream placeholder:text-cream/30 focus:outline-none focus:border-red-400/60"
+            />
+          </label>
           <AlertDialogFooter className="mt-2 gap-2 sm:gap-0">
             <AlertDialogCancel className="rounded-full border border-border bg-transparent px-6 py-2.5 text-sm text-cream/70 transition hover:border-cream/40 hover:bg-transparent hover:text-cream">
               Cancelar
             </AlertDialogCancel>
             <AlertDialogAction
+              disabled={
+                deleteAccountText.trim().toUpperCase() !== DELETE_ACCOUNT_CONFIRM_WORD ||
+                deletingAccount
+              }
               onClick={(e) => {
                 e.preventDefault();
-                void handleDeleteAccount();
+                void handleDeleteAccountPermanently();
               }}
-              className="rounded-full bg-red-500/90 px-6 py-2.5 text-sm text-cream transition hover:bg-red-500"
+              className="rounded-full bg-red-500/90 px-6 py-2.5 text-sm text-cream transition hover:bg-red-500 disabled:opacity-40 disabled:pointer-events-none"
             >
-              Apagar tudo
+              {deletingAccount ? "excluindo..." : "Excluir conta definitivamente"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

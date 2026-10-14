@@ -53,9 +53,11 @@ function maskPhone(v: string) {
 }
 
 function maskCard(v: string) {
+  // 16 dígitos cobre a imensa maioria dos cartões emitidos no Brasil (Visa,
+  // Mastercard, Elo, Hipercard).
   return v
     .replace(/\D/g, "")
-    .slice(0, 19)
+    .slice(0, 16)
     .replace(/(\d{4})(?=\d)/g, "$1 ")
     .trim();
 }

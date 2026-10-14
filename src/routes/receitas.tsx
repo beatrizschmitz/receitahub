@@ -29,6 +29,9 @@ type Recipe = {
   image_url?: string | null;
   image_photographer?: string | null;
   image_photographer_url?: string | null;
+  // Também vêm do generate-recipes, ancorados em pesquisa real de preço (ver index.ts).
+  cost_home_brl?: number | null;
+  cost_delivery_brl?: number | null;
 };
 
 // Traduz a falha da geração para algo acionável. O texto genérico fica só como
@@ -416,6 +419,8 @@ function RecipesPage() {
         image_url: recipe.image_url ?? null,
         image_photographer: recipe.image_photographer ?? null,
         image_photographer_url: recipe.image_photographer_url ?? null,
+        cost_home_brl: recipe.cost_home_brl ?? null,
+        cost_delivery_brl: recipe.cost_delivery_brl ?? null,
       });
       if (!error) {
         setSavedIds((prev) => new Set(prev).add(recipe.id));

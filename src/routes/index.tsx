@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import heroImg from "@/assets/landing-hero.jpg";
 import stepImg from "@/assets/landing-step.jpg";
 import { useCallback, useEffect, useState } from "react";
@@ -8,6 +8,7 @@ import { recipes as catalogRecipes } from "@/data/recipes";
 import { Clock, Gauge, Utensils } from "lucide-react";
 import { RecipeCover, RecipePhotoCredit } from "@/components/RecipeCover";
 import { OG_IMAGE_URL } from "@/lib/site";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/")({
   component: LandingPage,
@@ -35,6 +36,10 @@ type FeaturedRecipe = {
   image_url?: string | null;
   image_photographer?: string | null;
   image_photographer_url?: string | null;
+  // A IA já devolve isso (ver generate-recipes), só não era usado nesta página.
+  nutrition?: { calories: number; protein: number; carbs: number; fat: number };
+  cost_home_brl?: number | null;
+  cost_delivery_brl?: number | null;
 };
 
 // Catálogo curado local: último recurso quando não há receitas salvas nem IA disponível
@@ -87,7 +92,10 @@ function writeFeaturedCache(recipes: FeaturedRecipe[]) {
 }
 
 // Mini modal para receitas em destaque
-function FeaturedModal({ recipe, onClose }: { recipe: FeaturedRecipe; onClose: () => void }) {
+function FeaturedModal({ recipe, onClose, onSave, saving, saved }: {
+  recipe: FeaturedRecipe; onClose: () => void;
+  onSave: (r: FeaturedRecipe) => void; saving: boolean; saved: boolean;
+}) {
   useEffect(() => {
     const h = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", h);
@@ -146,7 +154,11 @@ function FeaturedModal({ recipe, onClose }: { recipe: FeaturedRecipe; onClose: (
               </div>
             </div>
           )}
-          <Link to="/receitas" onClick={onClose} className="block w-full py-3 rounded-full bg-blush text-charcoal text-sm font-medium text-center hover:bg-blush-deep transition">
+          <button onClick={() => onSave(recipe)} disabled={saving || saved}
+            className={`w-full py-3 rounded-full text-sm font-medium transition ${saved ? "bg-green-500/20 text-green-400 border border-green-500/30 cursor-default" : "bg-blush text-charcoal hover:bg-blush-deep disabled:opacity-60"}`}>
+            {saved ? "Salva em minhas receitas" : saving ? "Salvando…" : "Salvar em minhas receitas"}
+          </button>
+          <Link to="/receitas" onClick={onClose} className="block w-full py-3 rounded-full border border-border text-cream/80 text-sm font-medium text-center hover:border-blush/40 hover:text-cream transition">
             Ver mais receitas
           </Link>
           <RecipePhotoCredit imageUrl={recipe.image_url} photographer={recipe.image_photographer} photographerUrl={recipe.image_photographer_url} className="text-center" />
@@ -158,11 +170,48 @@ function FeaturedModal({ recipe, onClose }: { recipe: FeaturedRecipe; onClose: (
 
 function LandingPage() {
   const { session } = useAuth();
+  const navigate = useNavigate();
   const [pantryCount, setPantryCount] = useState<number | null>(null);
   const [recipeCount, setRecipeCount] = useState<number | null>(null);
   const [featured, setFeatured] = useState<FeaturedRecipe[]>([]);
   const [selectedFeatured, setSelectedFeatured] = useState<FeaturedRecipe | null>(null);
   const [loadingFeatured, setLoadingFeatured] = useState(true);
+  const [savingFeaturedId, setSavingFeaturedId] = useState<string | null>(null);
+  const [savedFeaturedIds, setSavedFeaturedIds] = useState<Set<string>>(new Set());
+
+  // Mesma lógica de /receitas (handleSave em receitas.tsx): visitante é
+  // mandado pro cadastro em vez de a ação falhar caladinha.
+  async function handleSaveFeatured(recipe: FeaturedRecipe) {
+    if (!session) {
+      navigate({ to: "/cadastro" });
+      return;
+    }
+    setSavingFeaturedId(recipe.id);
+    try {
+      const { error } = await supabase.from("user_recipes").insert({
+        user_id: session.user.id, title: recipe.title, description: recipe.description,
+        category: recipe.category, time_minutes: recipe.time_minutes, difficulty: recipe.difficulty,
+        diet: recipe.diet, ingredients: recipe.ingredients, instructions: recipe.instructions,
+        calories_per_serving: recipe.nutrition?.calories ?? null, is_favorite: false,
+        image_url: recipe.image_url ?? null,
+        image_photographer: recipe.image_photographer ?? null,
+        image_photographer_url: recipe.image_photographer_url ?? null,
+        cost_home_brl: recipe.cost_home_brl ?? null,
+        cost_delivery_brl: recipe.cost_delivery_brl ?? null,
+      });
+      if (!error) {
+        setSavedFeaturedIds((prev) => new Set(prev).add(recipe.id));
+      } else {
+        console.error(error);
+        toast.error("Não consegui salvar a receita. Tente novamente.");
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Não consegui salvar a receita. Tente novamente.");
+    } finally {
+      setSavingFeaturedId(null);
+    }
+  }
 
   // Conta itens reais da despensa
   useEffect(() => {
@@ -386,38 +435,55 @@ function LandingPage() {
               // São 5 no total: o primeiro ocupa 2 colunas e os 4 menores
               // completam 6 unidades, fechando em 2 linhas exatas.
               const lead = i === 0;
+              const isSaved = savedFeaturedIds.has(r.id);
               return (
-                <button
-                  key={r.id}
-                  onClick={() => setSelectedFeatured(r)}
-                  className={`group flex h-full w-full flex-col text-left ${lead ? "sm:col-span-2" : ""}`}
-                >
-                  <RecipeCover
-                    title={r.title} category={r.category} ingredients={r.ingredients}
-                    imageUrl={r.image_url} variant="solo"
-                    className={`${lead ? "aspect-[16/10]" : "aspect-[4/5]"} rounded-2xl mb-4 border border-border group-hover:border-blush/40 transition`}
+                <div key={r.id} className={`group relative flex h-full w-full flex-col ${lead ? "sm:col-span-2" : ""}`}>
+                  <button
+                    onClick={() => setSelectedFeatured(r)}
+                    className="flex h-full w-full flex-col text-left"
                   >
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-                    <div className="absolute bottom-4 left-4 right-4">
-                      {r.diet && r.diet.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mb-2">
-                          {r.diet.slice(0, 2).map((d) => <span key={d} className="text-[9px] uppercase tracking-wider bg-blush/20 text-blush px-2 py-0.5 rounded-full">{d}</span>)}
-                        </div>
-                      )}
+                    <RecipeCover
+                      title={r.title} category={r.category} ingredients={r.ingredients}
+                      imageUrl={r.image_url} variant="solo"
+                      className={`${lead ? "aspect-[16/10]" : "aspect-[4/5]"} rounded-2xl mb-4 border border-border group-hover:border-blush/40 transition`}
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+                      <div className="absolute bottom-4 left-4 right-4">
+                        {r.diet && r.diet.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mb-2">
+                            {r.diet.slice(0, 2).map((d) => <span key={d} className="text-[9px] uppercase tracking-wider bg-blush/20 text-blush px-2 py-0.5 rounded-full">{d}</span>)}
+                          </div>
+                        )}
+                      </div>
+                    </RecipeCover>
+                    <div className="flex items-baseline gap-3 text-sm mb-1.5">
+                      <span className="text-blush/90">{r.category}</span>
+                      {r.time_minutes ? (
+                        <span className="inline-flex items-center gap-1 text-cream/45">
+                          <Clock size={12} strokeWidth={1.5} />
+                          {r.time_minutes} min
+                        </span>
+                      ) : null}
                     </div>
-                  </RecipeCover>
-                  <div className="flex items-baseline gap-3 text-sm mb-1.5">
-                    <span className="text-blush/90">{r.category}</span>
-                    {r.time_minutes ? (
-                      <span className="inline-flex items-center gap-1 text-cream/45">
-                        <Clock size={12} strokeWidth={1.5} />
-                        {r.time_minutes} min
-                      </span>
-                    ) : null}
-                  </div>
-                  <h3 className={`font-display text-cream group-hover:text-blush transition leading-tight line-clamp-2 ${lead ? "text-3xl md:text-4xl" : "text-2xl"}`}>{r.title}</h3>
-                  {r.description && <p className="text-sm text-cream/60 mt-1 line-clamp-2">{r.description}</p>}
-                </button>
+                    <h3 className={`font-display text-cream group-hover:text-blush transition leading-tight line-clamp-2 ${lead ? "text-3xl md:text-4xl" : "text-2xl"}`}>{r.title}</h3>
+                    {r.description && <p className="text-sm text-cream/60 mt-1 line-clamp-2">{r.description}</p>}
+                  </button>
+
+                  {/* Salvar rápido, sem precisar abrir o modal — mesmo padrão do card de /receitas */}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); void handleSaveFeatured(r); }}
+                    disabled={savingFeaturedId === r.id || isSaved}
+                    title={isSaved ? "Salva!" : "Salvar receita"}
+                    className={`absolute top-3 right-3 h-9 w-9 flex items-center justify-center rounded-full border transition-all ${
+                      isSaved ? "bg-green-500/20 border-green-500/40 text-green-400" : "bg-charcoal/80 backdrop-blur-sm border-border/60 text-cream/70 hover:bg-blush hover:border-blush hover:text-charcoal"
+                    }`}
+                  >
+                    {isSaved
+                      ? <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                      : <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z" /></svg>
+                    }
+                  </button>
+                </div>
               );
             })}
           </div>
@@ -447,13 +513,26 @@ function LandingPage() {
       </section>
 
       <footer className="border-t border-border">
-        <div className="max-w-7xl mx-auto px-6 lg:px-10 py-10 flex flex-wrap items-center justify-between gap-4 text-sm text-cream/50">
-          <div className="font-display italic text-blush text-lg font-mono">receitahub</div>
-          <div>© {new Date().getFullYear()} receitahub. cozinhe com inteligência.</div>
+        <div className="max-w-7xl mx-auto px-6 lg:px-10 py-10 flex flex-col gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-4 text-sm text-cream/50">
+            <div className="font-display italic text-blush text-lg font-mono">receitahub</div>
+            <div>© {new Date().getFullYear()} receitahub. cozinhe com inteligência.</div>
+          </div>
+          <p className="text-xs text-cream/35 leading-relaxed">
+            Projeto Integrador III — Centro Universitário de Brasília (CEUB) · Orientação: Prof. Lucas Rodrigues da Silva · Equipe: Beatriz Schmitz, Gabrielle Gonçalves Gutierres, Luísa de Moura Zimmer
+          </p>
         </div>
       </footer>
 
-      {selectedFeatured && <FeaturedModal recipe={selectedFeatured} onClose={() => setSelectedFeatured(null)} />}
+      {selectedFeatured && (
+        <FeaturedModal
+          recipe={selectedFeatured}
+          onClose={() => setSelectedFeatured(null)}
+          onSave={handleSaveFeatured}
+          saving={savingFeaturedId === selectedFeatured.id}
+          saved={savedFeaturedIds.has(selectedFeatured.id)}
+        />
+      )}
     </div>
   );
 }

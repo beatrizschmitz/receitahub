@@ -14,7 +14,7 @@ const paymentSchema = z.object({
     .transform((v) => v.replace(/\D/g, ""))
     .refine((v) => v.length >= 10 && v.length <= 11, { message: "Telefone inválido" }),
   // dados sensíveis: usados apenas em memória para chamar o gateway, nunca persistidos
-  cardNumber: z.string().transform((v) => v.replace(/\D/g, "")).refine((v) => v.length >= 13 && v.length <= 19),
+  cardNumber: z.string().transform((v) => v.replace(/\D/g, "")).refine((v) => v.length >= 13 && v.length <= 16),
   cardHolder: z.string().trim().min(3).max(120),
   cardExpiry: z.string().regex(/^\d{2}\/\d{2}$/, "Validade inválida"),
   cardCvv: z.string().regex(/^\d{3,4}$/, "CVV inválido"),

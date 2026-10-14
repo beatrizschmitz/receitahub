@@ -14,6 +14,8 @@ type Options = {
   initial: unknown;
   /** Só quem está logado pode pedir a estimativa (a função do servidor exige sessão) */
   canEstimate: boolean;
+  /** Texto da receita (descrição, modo de preparo): permite estimar mesmo sem lista de ingredientes */
+  context?: string | null;
   /** Calorias já conhecidas, para a estimativa ficar coerente com elas */
   knownCalories?: number | null;
   /**
@@ -49,8 +51,10 @@ export function useRecipeNutrition(opts: Options): {
   onEstimated.current = opts.onEstimated;
 
   const ingredientsKey = (opts.ingredients ?? []).join(";");
-  const cacheKey = `${opts.title}|${opts.servings ?? 4}|${ingredientsKey}`.toLowerCase();
-  const hasIngredients = (opts.ingredients?.length ?? 0) > 0;
+  const cacheKey =
+    `${opts.title}|${opts.servings ?? 4}|${ingredientsKey}|${(opts.context ?? "").slice(0, 80)}`.toLowerCase();
+  const hasIngredients =
+    (opts.ingredients?.length ?? 0) > 0 || (opts.context ?? "").trim().length >= 20;
 
   useEffect(() => {
     setEstimated(null);
@@ -74,6 +78,7 @@ export function useRecipeNutrition(opts: Options): {
       data: {
         title: opts.title,
         ingredients: opts.ingredients ?? [],
+        context: opts.context ?? undefined,
         servings: opts.servings ?? 4,
         knownCalories: opts.knownCalories ?? undefined,
       },

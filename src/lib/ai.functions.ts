@@ -476,8 +476,12 @@ async function nutritionFromAi(
   ingredients: string[],
   servings: number,
   knownCalories: number | null,
+  context = "",
 ): Promise<RecipeNutrition | null> {
-  const ingredientLines = ingredients.map((i) => `- ${i}`).join("\n");
+  const ingredientLines =
+    ingredients.length > 0
+      ? ingredients.map((i) => `- ${i}`).join("\n")
+      : `(lista de ingredientes não informada; estime pelo nome do prato e pelo texto abaixo)\n${context}`;
   const referenceLine = knownCalories
     ? `Referência: a receita foi estimada em cerca de ${knownCalories} kcal por porção; mantenha os valores coerentes com isso.`
     : "";
@@ -518,6 +522,8 @@ export const estimateRecipeNutrition = createServerFn({ method: "POST" })
       ingredients: string[];
       servings?: number;
       knownCalories?: number;
+      /** Texto da receita (descrição e modo de preparo), usado quando não há lista de ingredientes */
+      context?: string;
     }) => {
       const title = String(input?.title ?? "")
         .trim()
@@ -526,13 +532,17 @@ export const estimateRecipeNutrition = createServerFn({ method: "POST" })
         .slice(0, 40)
         .map((i) => String(i).trim().slice(0, 160))
         .filter(Boolean);
-      if (title.length < 2 || ingredients.length === 0)
+      const context = String(input?.context ?? "")
+        .trim()
+        .slice(0, 1500);
+      if (title.length < 2 || (ingredients.length === 0 && context.length < 20))
         throw new Error("Receita sem ingredientes.");
       const servings = Math.min(Math.max(Math.round(Number(input?.servings) || 4), 1), 20);
       const known = Number(input?.knownCalories);
       return {
         title,
         ingredients,
+        context,
         servings,
         knownCalories:
           Number.isFinite(known) && known > 0 && known < 3000 ? Math.round(known) : null,
@@ -540,15 +550,19 @@ export const estimateRecipeNutrition = createServerFn({ method: "POST" })
     },
   )
   .handler(async ({ data }): Promise<{ nutrition: RecipeNutrition | null }> => {
-    const key = `${data.title}|${data.servings}|${data.ingredients.join(";")}`.toLowerCase();
+    const key =
+      `${data.title}|${data.servings}|${data.ingredients.join(";")}|${data.context.slice(0, 80)}`.toLowerCase();
     const cached = nutritionCache.get(key);
     if (cached) return { nutrition: cached };
 
     let nutrition: RecipeNutrition | null = null;
-    try {
-      nutrition = await nutritionFromTaco(data.title, data.ingredients, data.servings);
-    } catch (e) {
-      console.error("estimateRecipeNutrition (TACO)", e);
+    // Com a lista de ingredientes dá para calcular com a TACO; sem ela, só a estimativa da IA
+    if (data.ingredients.length > 0) {
+      try {
+        nutrition = await nutritionFromTaco(data.title, data.ingredients, data.servings);
+      } catch (e) {
+        console.error("estimateRecipeNutrition (TACO)", e);
+      }
     }
     if (!nutrition) {
       try {
@@ -557,6 +571,7 @@ export const estimateRecipeNutrition = createServerFn({ method: "POST" })
           data.ingredients,
           data.servings,
           data.knownCalories,
+          data.context,
         );
       } catch (e) {
         console.error("estimateRecipeNutrition (IA)", e);

@@ -109,6 +109,7 @@ function RecipeDetailModal({
     initial: recipe.nutrition,
     canEstimate: Boolean(modalSession),
     knownCalories: recipe.calories_per_serving,
+    context: [recipe.description, recipe.instructions].filter(Boolean).join("\n"),
     upgradeAi: true,
     onEstimated: (n) => onNutrition(recipe, n),
   });
@@ -278,7 +279,18 @@ function RecipeDetailModal({
                 </div>
               )}
             </div>
-            <NutritionCard nutrition={nutrition} status={status} onRetry={retry} ratio={ratio} />
+            <NutritionCard
+              nutrition={nutrition}
+              status={status}
+              onRetry={retry}
+              ratio={ratio}
+              knownCalories={recipe.calories_per_serving}
+              unavailableText={
+                (recipe.ingredients?.length ?? 0) === 0
+                  ? "Esta receita não tem ingredientes nem modo de preparo, então não dá para calcular a informação nutricional."
+                  : "Entre na sua conta para calcular a informação nutricional."
+              }
+            />
             <div>
               <div className="text-sm text-cream/50 mb-2">Suas anotações</div>
               <textarea

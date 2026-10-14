@@ -30,7 +30,7 @@ export const PLANS: PlanDefinition[] = [
       { label: "Receitas geradas por IA", included: true },
       { label: `Chef Despensa: ${FREE_CHAT_DAILY_LIMIT} mensagens por dia`, included: true },
       { label: "Reconhecimento de ingredientes por foto", included: false },
-      { label: "Planos de dieta personalizados", included: false },
+      { label: "Plano alimentar personalizado", included: false },
     ],
   },
   {
@@ -46,7 +46,7 @@ export const PLANS: PlanDefinition[] = [
       { label: "Chef Despensa ilimitado", included: true },
       { label: "Reconhecimento de ingredientes por foto", included: true },
       { label: "Receita instantânea a partir da foto", included: true },
-      { label: "Planos de dieta personalizados", included: false },
+      { label: "Plano alimentar personalizado", included: false },
     ],
   },
   {
@@ -58,7 +58,7 @@ export const PLANS: PlanDefinition[] = [
     icon: "Sparkles",
     features: [
       { label: "Tudo do plano básico", included: true },
-      { label: "Planos de dieta personalizados por IA", included: true },
+      { label: "Plano alimentar personalizado por IA", included: true },
       { label: "Cardápio semanal com calorias por refeição", included: true },
       { label: "Restrições alimentares e objetivos", included: true },
       { label: "Histórico de planos salvos", included: true },

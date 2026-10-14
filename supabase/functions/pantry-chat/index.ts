@@ -160,7 +160,7 @@ Regras:
       }
       if (response.status === 402) {
         return new Response(
-          JSON.stringify({ error: "Créditos de IA esgotados. Adicione créditos no workspace." }),
+          JSON.stringify({ error: "Créditos de IA esgotados. Tente novamente mais tarde." }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }

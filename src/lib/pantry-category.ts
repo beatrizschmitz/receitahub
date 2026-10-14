@@ -971,23 +971,39 @@ for (const [keywords, category] of CATEGORY_KEYWORDS) {
  * batem como palavra inteira, para "sal" não casar dentro de "salsicha";
  * plurais e diminutivos são reconhecidos via singularize.
  */
-export function suggestCategory(name: string): string | null {
+/** Formas de busca de um nome digitado: palavras no singular e frases inteiras no singular. */
+export type NameForms = { wordForms: Set<string>; singularPhrases: string[] };
+
+export function nameForms(name: string): NameForms | null {
   const normalized = normalizeItemName(name);
   if (!normalized) return null;
   const words = normalized.split(" ");
-  const wordForms = new Set(words.flatMap(singularize));
-  // Frase inteira com cada palavra no singular, para casar "ovos de codorna",
-  // "queijos minas", "peitos de frango" com as chaves de várias palavras.
-  const singularPhrases = [
-    normalized,
-    words.map((w) => singularize(w).slice(-1)[0] ?? w).join(" "),
-    words.map((w) => singularize(w)[1] ?? w).join(" "),
-  ];
+  return {
+    wordForms: new Set(words.flatMap(singularize)),
+    // Frase inteira com cada palavra no singular, para casar "ovos de codorna",
+    // "queijos minas", "peitos de frango" com as chaves de várias palavras.
+    singularPhrases: [
+      normalized,
+      words.map((w) => singularize(w).slice(-1)[0] ?? w).join(" "),
+      words.map((w) => singularize(w)[1] ?? w).join(" "),
+    ],
+  };
+}
+
+/** Uma palavra-chave (já normalizada) bate no nome? Chaves de uma palavra só batem como palavra inteira. */
+export function keywordHits(forms: NameForms, keyword: string): boolean {
+  return keyword.includes(" ")
+    ? forms.singularPhrases.some((p) => p.includes(keyword))
+    : forms.wordForms.has(keyword);
+}
+
+export function suggestCategory(name: string): string | null {
+  const forms = nameForms(name);
+  if (!forms) return null;
 
   let best: { category: string; length: number } | null = null;
-  for (const { keyword, category, multi } of KEYWORD_INDEX) {
-    const hit = multi ? singularPhrases.some((p) => p.includes(keyword)) : wordForms.has(keyword);
-    if (hit && (!best || keyword.length > best.length)) {
+  for (const { keyword, category } of KEYWORD_INDEX) {
+    if (keywordHits(forms, keyword) && (!best || keyword.length > best.length)) {
       best = { category, length: keyword.length };
     }
   }

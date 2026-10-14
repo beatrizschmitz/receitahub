@@ -342,12 +342,12 @@ function dataUrlToBlob(dataUrl: string): Blob {
 // Monta a resposta do chef a partir da receita estruturada devolvida pela IA
 function recipeToMarkdown(mainItem: string, recipe: Recipe): string {
   const parts: string[] = [];
-  parts.push(mainItem ? `Identifiquei **${mainItem}** na foto!` : "Olha o que dá pra fazer!");
+  parts.push(mainItem ? `Identifiquei **${mainItem}** na foto!` : "Veja o que dá para fazer!");
   parts.push(`### ${recipe.title}`);
   if (recipe.description) parts.push(recipe.description);
 
   const meta: string[] = [];
-  if (recipe.time_minutes) meta.push(`⏱ ${recipe.time_minutes} min`);
+  if (recipe.time_minutes) meta.push(`Tempo: ${recipe.time_minutes} min`);
   if (recipe.difficulty) meta.push(`${recipe.difficulty}`);
   if (recipe.category) meta.push(`${recipe.category}`);
   if (meta.length > 0) parts.push(meta.join(" — "));
@@ -388,7 +388,7 @@ export function PantryChat() {
     {
       role: "assistant",
       content:
-        'Oi! Sou seu chef virtual. Posso ver sua despensa e sugerir o que cozinhar. Me pergunta algo como **"o que posso fazer no almoço?"**',
+        'Oi! Sou seu chef virtual. Posso ver sua despensa e sugerir o que cozinhar. Pergunte algo como **"o que posso fazer no almoço?"**',
     },
   ]);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -458,7 +458,7 @@ export function PantryChat() {
 
   async function handleFile(file: File) {
     if (file.size > 8_000_000) {
-      toast.error("Imagem muito grande (máx 8 MB).");
+      toast.error("Imagem muito grande (máximo de 8 MB).");
       return;
     }
     try {
@@ -531,7 +531,7 @@ export function PantryChat() {
     }
 
     setSavedMsgIndexes((prev) => new Set(prev).add(msgIndex));
-    toast.success(`"${title}" salva em Minhas Receitas.`);
+    toast.success(`"${title}" salva em Minhas receitas.`);
   }
 
   // Fluxo da foto: reconhece o prato, registra e devolve a receita no chat
@@ -716,7 +716,7 @@ export function PantryChat() {
         } else {
           // Nada chegou: tira o balão vazio "..." e avisa.
           setMessages((prev) => prev.slice(0, -1));
-          toast.error("O chef demorou demais pra responder. Tenta de novo?");
+          toast.error("O chef demorou demais para responder. Tente de novo.");
         }
       }
     } catch (e) {
@@ -819,7 +819,7 @@ export function PantryChat() {
                     >
                       {isSaved ? (
                         <>
-                          <Check className="h-3 w-3" /> Salva em Minhas Receitas!
+                          <Check className="h-3 w-3" /> Salva em Minhas receitas!
                         </>
                       ) : (
                         <>

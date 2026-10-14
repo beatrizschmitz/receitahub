@@ -102,7 +102,7 @@ function PaymentPage() {
   if (authLoading || !session) {
     return (
       <div className="min-h-screen bg-charcoal text-cream">
-        <div className="py-24 text-center text-cream/50">Carregando...</div>
+        <div className="py-24 text-center text-cream/50">Carregando…</div>
       </div>
     );
   }
@@ -263,8 +263,7 @@ function PaymentPage() {
                 <Lock className="w-4 h-4 text-cream/55" />
               </div>
               <p className="text-xs text-cream/40 mt-2">
-                Enviados por HTTPS direto para o gateway de pagamento. Nunca ficam salvos no
-                receitahub.
+                Enviados por HTTPS ao gateway de pagamento. Nunca ficam salvos no receitahub.
               </p>
               <div className="grid gap-4 sm:grid-cols-2 mt-5">
                 <label className="sm:col-span-2 block">
@@ -327,7 +326,7 @@ function PaymentPage() {
                 className="rounded-full bg-blush text-charcoal px-7 py-3 text-sm hover:bg-blush-deep transition disabled:opacity-60 inline-flex items-center justify-center gap-2"
               >
                 {busy && <Loader2 className="w-4 h-4 animate-spin" />}
-                {busy ? "processando pagamento..." : "confirmar pagamento"}
+                {busy ? "processando pagamento…" : "confirmar pagamento"}
               </button>
               <button
                 type="button"

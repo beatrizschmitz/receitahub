@@ -5,6 +5,8 @@ import recipe4 from "@/assets/recipe-4.jpg";
 import recipe5 from "@/assets/recipe-5.jpg";
 import recipe6 from "@/assets/recipe-6.jpg";
 
+import { nutritionFromMacros, type RecipeNutrition } from "@/lib/recipe-nutrition";
+
 export type Recipe = {
   id: string;
   title: string;
@@ -19,11 +21,17 @@ export type Recipe = {
   ingredients?: string[];
   instructions?: string;
   time_minutes?: number;
+  /** Porções que a lista de ingredientes rende */
+  servings?: number;
+  /** Estimativa por porção (proteína, carboidrato e gordura em g; calorias saem dos macros) */
+  nutrition?: RecipeNutrition;
 };
 
 export const recipes: Recipe[] = [
   {
     id: "risoto-cogumelos",
+    servings: 4,
+    nutrition: nutritionFromMacros(12, 70, 17) ?? undefined,
     title: "Risoto cremoso de cogumelos",
     image: recipe1,
     category: "Prato principal",
@@ -50,6 +58,8 @@ export const recipes: Recipe[] = [
   },
   {
     id: "pasta-pomodoro",
+    servings: 4,
+    nutrition: nutritionFromMacros(17, 90, 11) ?? undefined,
     title: "Spaghetti al pomodoro",
     image: recipe2,
     category: "Massa",
@@ -72,6 +82,8 @@ export const recipes: Recipe[] = [
   },
   {
     id: "salada-rome",
+    servings: 2,
+    nutrition: nutritionFromMacros(4, 20, 22) ?? undefined,
     title: "Salada de romã & abacate",
     image: recipe3,
     category: "Salada",
@@ -95,6 +107,8 @@ export const recipes: Recipe[] = [
   },
   {
     id: "frango-assado",
+    servings: 6,
+    nutrition: nutritionFromMacros(36, 1, 22) ?? undefined,
     title: "Frango assado com ervas",
     image: recipe4,
     category: "Prato principal",
@@ -119,6 +133,8 @@ export const recipes: Recipe[] = [
   },
   {
     id: "torta-chocolate",
+    servings: 8,
+    nutrition: nutritionFromMacros(5, 42, 33) ?? undefined,
     title: "Torta de chocolate & framboesa",
     image: recipe5,
     category: "Sobremesa",
@@ -141,6 +157,8 @@ export const recipes: Recipe[] = [
   },
   {
     id: "pao-rustico",
+    servings: 10,
+    nutrition: nutritionFromMacros(5, 30, 1) ?? undefined,
     title: "Pão rústico de fermentação natural",
     image: recipe6,
     category: "Pães",

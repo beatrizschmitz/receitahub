@@ -91,7 +91,7 @@ function ProfilePage() {
   if (authLoading || !session) {
     return (
       <div className="min-h-screen bg-charcoal text-cream flex items-center justify-center">
-        <div className="text-cream/50">Carregando...</div>
+        <div className="text-cream/50">Carregando…</div>
       </div>
     );
   }
@@ -106,7 +106,7 @@ function ProfilePage() {
       return;
     }
     if (trimmed.length > 80) {
-      toast.error("Nome muito longo (máx 80 caracteres)");
+      toast.error("Nome muito longo (máximo de 80 caracteres)");
       return;
     }
     setSaving(true);
@@ -142,7 +142,7 @@ function ProfilePage() {
         supabase.from("calorie_log").delete().eq("user_id", session.user.id),
       ]);
       if (e1 || e2 || e3) {
-        toast.error("Erro ao Apagar dados");
+        toast.error("Erro ao apagar dados");
       } else {
         toast.success("Todos os seus dados foram apagados");
         setPantryCount(0);
@@ -197,7 +197,7 @@ function ProfilePage() {
 
       <section className="max-w-4xl mx-auto px-6 lg:px-10 pb-24 space-y-8">
         {loading ? (
-          <div className="text-center py-16 text-cream/50">Carregando perfil...</div>
+          <div className="text-center py-16 text-cream/50">Carregando perfil…</div>
         ) : (
           <>
             {/* Stats */}
@@ -240,7 +240,7 @@ function ProfilePage() {
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
                     maxLength={80}
-                    placeholder="Como devemos te chamar?"
+                    placeholder="Como devemos chamar você?"
                     className="w-full bg-charcoal border border-border rounded-xl px-4 py-3 text-cream placeholder:text-cream/40 focus:outline-none focus:border-blush/50"
                   />
                 </label>
@@ -253,7 +253,7 @@ function ProfilePage() {
                     className="w-full bg-charcoal/50 border border-border rounded-xl px-4 py-3 text-cream/50 cursor-not-allowed"
                   />
                   <span className="text-xs text-cream/40 mt-1 block">
-                    O email não pode ser alterado.
+                    O e-mail não pode ser alterado.
                   </span>
                 </label>
               </div>
@@ -263,7 +263,7 @@ function ProfilePage() {
                 disabled={saving}
                 className="mt-8 px-6 py-3 rounded-full bg-blush text-charcoal text-sm font-medium hover:bg-blush-deep transition disabled:opacity-50"
               >
-                {saving ? "salvando..." : "salvar alterações"}
+                {saving ? "salvando…" : "salvar alterações"}
               </button>
             </form>
 
@@ -380,7 +380,7 @@ function ProfilePage() {
               }}
               className="rounded-full bg-red-500/90 px-6 py-2.5 text-sm text-cream transition hover:bg-red-500 disabled:opacity-60 disabled:pointer-events-none"
             >
-              {wipingData ? "apagando..." : "Apagar tudo"}
+              {wipingData ? "apagando…" : "Apagar tudo"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -431,7 +431,7 @@ function ProfilePage() {
               }}
               className="rounded-full bg-red-500/90 px-6 py-2.5 text-sm text-cream transition hover:bg-red-500 disabled:opacity-40 disabled:pointer-events-none"
             >
-              {deletingAccount ? "excluindo..." : "Excluir conta definitivamente"}
+              {deletingAccount ? "excluindo…" : "Excluir conta definitivamente"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

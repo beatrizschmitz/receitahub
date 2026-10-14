@@ -1,6 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { NutritionCard } from "@/components/NutritionCard";
+import { useRecipeNutrition } from "@/hooks/use-recipe-nutrition";
+import { insertUserRecipe } from "@/lib/user-recipes";
 import { useAuth } from "@/contexts/AuthContext";
 import { Clock, Gauge, Search, Utensils } from "lucide-react";
 import { RecipeCover, RecipePhotoCredit } from "@/components/RecipeCover";
@@ -69,7 +72,7 @@ function describeRecipeError(fnError: unknown, payloadError?: string): string {
     status === 503 ||
     /limite de requisi|rate limit|too many requests|sobrecarregad/i.test(raw)
   ) {
-    return "Estamos preparando muitas receitas ao mesmo tempo — tenta de novo em instantes?";
+    return "Estamos preparando muitas receitas ao mesmo tempo. Tente de novo em instantes.";
   }
   if (status === 402 || /cr[ée]dito|quota|insufficient/i.test(raw)) {
     return "O serviço de receitas está indisponível no momento. Tente novamente mais tarde.";
@@ -188,6 +191,15 @@ function RecipeModal({
 }) {
   const [servings, setServings] = useState(recipe.servings ?? 4);
   const ratio = servings / (recipe.servings ?? 4);
+  const { session: modalSession } = useAuth();
+  // Receitas geradas já trazem os valores; se faltar, estima uma vez (só logado)
+  const { nutrition, status, retry } = useRecipeNutrition({
+    title: recipe.title,
+    ingredients: recipe.ingredients,
+    servings: recipe.servings ?? 4,
+    initial: recipe.nutrition,
+    canEstimate: Boolean(modalSession),
+  });
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -299,43 +311,7 @@ function RecipeModal({
               ))}
             </div>
           </div>
-          {recipe.nutrition && (
-            <div>
-              <h3 className="text-sm font-medium text-cream/80 mb-3">
-                Informação nutricional{" "}
-                <span className="text-cream/40 normal-case">(estimativa via IA)</span>
-              </h3>
-              <div className="grid grid-cols-4 gap-3">
-                {[
-                  {
-                    label: "Calorias",
-                    value: Math.round(recipe.nutrition.calories * ratio),
-                    unit: "kcal",
-                  },
-                  {
-                    label: "Proteínas",
-                    value: Math.round(recipe.nutrition.protein * ratio),
-                    unit: "g",
-                  },
-                  {
-                    label: "Carboidratos",
-                    value: Math.round(recipe.nutrition.carbs * ratio),
-                    unit: "g",
-                  },
-                  { label: "Gorduras", value: Math.round(recipe.nutrition.fat * ratio), unit: "g" },
-                ].map((n) => (
-                  <div
-                    key={n.label}
-                    className="bg-charcoal-light border border-border rounded-xl p-3 text-center"
-                  >
-                    <div className="text-lg font-display text-cream">{n.value}</div>
-                    <div className="text-[10px] text-cream/50">{n.unit}</div>
-                    <div className="text-[10px] text-cream/40 mt-0.5">{n.label}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <NutritionCard nutrition={nutrition} status={status} onRetry={retry} ratio={ratio} />
           <button
             onClick={() => onSave(recipe)}
             disabled={saving || saved}
@@ -593,7 +569,7 @@ function RecipesPage() {
     }
     setSavingId(recipe.id);
     try {
-      const { error } = await supabase.from("user_recipes").insert({
+      const { error } = await insertUserRecipe({
         user_id: session.user.id,
         title: recipe.title,
         description: recipe.description,
@@ -604,6 +580,7 @@ function RecipesPage() {
         ingredients: recipe.ingredients,
         instructions: recipe.instructions,
         calories_per_serving: recipe.nutrition?.calories ?? null,
+        nutrition: recipe.nutrition ?? null,
         is_favorite: false,
         image_url: recipe.image_url ?? null,
         image_photographer: recipe.image_photographer ?? null,
@@ -727,7 +704,7 @@ function RecipesPage() {
                 title="Sugere outras receitas aleatórias, mantendo os filtros atuais"
                 className="ml-auto px-4 py-2 rounded-full text-sm border border-blush/40 text-blush hover:bg-blush hover:text-charcoal transition disabled:opacity-50"
               >
-                {loading ? "Gerando…" : "↻ Gerar novas"}
+                {loading ? "Gerando…" : "Gerar novas"}
               </button>
             </div>
           </div>

@@ -297,6 +297,7 @@ export type Database = {
           instructions: string | null;
           is_favorite: boolean;
           notes: string | null;
+          nutrition: Json | null;
           rating: number | null;
           time_minutes: number | null;
           times_cooked: number;
@@ -321,6 +322,7 @@ export type Database = {
           instructions?: string | null;
           is_favorite?: boolean;
           notes?: string | null;
+          nutrition?: Json | null;
           rating?: number | null;
           time_minutes?: number | null;
           times_cooked?: number;
@@ -345,6 +347,7 @@ export type Database = {
           instructions?: string | null;
           is_favorite?: boolean;
           notes?: string | null;
+          nutrition?: Json | null;
           rating?: number | null;
           time_minutes?: number | null;
           times_cooked?: number;

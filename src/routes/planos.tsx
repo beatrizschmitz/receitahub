@@ -24,7 +24,7 @@ export const Route = createFileRoute("/planos")({
       {
         name: "description",
         content:
-          "Compare os planos gratuito, básico e premium do receitahub: chef por IA ilimitado, reconhecimento de ingredientes por foto e planos de dieta personalizados.",
+          "Compare os planos gratuito, básico e premium do receitahub: chef por IA ilimitado, reconhecimento de ingredientes por foto e plano alimentar personalizado.",
       },
       { property: "og:title", content: "Planos e assinatura — receitahub" },
       {
@@ -229,7 +229,7 @@ function PlansPage() {
                     : isLocked
                       ? "indisponível no momento"
                       : pending === plan.tier
-                        ? "ativando..."
+                        ? "ativando…"
                         : !session
                           ? "criar conta"
                           : plan.tier === "free"

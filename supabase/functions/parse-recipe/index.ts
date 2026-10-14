@@ -215,7 +215,7 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ error: "Limite de requisições excedido. Tente novamente em instantes." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       if (aiRes.status === 402) {
-        return new Response(JSON.stringify({ error: "Créditos de IA esgotados. Adicione créditos no workspace." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ error: "Créditos de IA esgotados. Tente novamente mais tarde." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       if (aiRes.status === 503) {
         return new Response(JSON.stringify({ error: "A IA está temporariamente sobrecarregada. Tente novamente em alguns instantes." }), { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } });

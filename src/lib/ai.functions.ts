@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { effectiveTier } from "@/lib/plans";
 import { CATEGORIES, isValidCategory } from "@/lib/pantry-category";
+import { nutritionFromMacros, type RecipeNutrition } from "@/lib/recipe-nutrition";
 import {
   GOAL_LABEL,
   calculateTargets,
@@ -455,4 +456,85 @@ Formato: {"category":"..."}`,
       console.error("categorizeIngredient", e);
     }
     return { category: null };
+  });
+
+// Informação nutricional por porção de uma receita que ainda não tem (salvas
+// antes, importadas ou vindas do chat). Não exige plano pago. É uma estimativa
+// da IA; as calorias saem dos macros (4/4/9), para os números fecharem entre si.
+// O cache em memória evita estimar duas vezes a mesma receita.
+const nutritionCache = new Map<string, RecipeNutrition>();
+
+export const estimateRecipeNutrition = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(
+    (input: {
+      title: string;
+      ingredients: string[];
+      servings?: number;
+      knownCalories?: number;
+    }) => {
+      const title = String(input?.title ?? "")
+        .trim()
+        .slice(0, 160);
+      const ingredients = (Array.isArray(input?.ingredients) ? input.ingredients : [])
+        .slice(0, 40)
+        .map((i) => String(i).trim().slice(0, 160))
+        .filter(Boolean);
+      if (title.length < 2 || ingredients.length === 0)
+        throw new Error("Receita sem ingredientes.");
+      const servings = Math.min(Math.max(Math.round(Number(input?.servings) || 4), 1), 20);
+      const known = Number(input?.knownCalories);
+      return {
+        title,
+        ingredients,
+        servings,
+        knownCalories:
+          Number.isFinite(known) && known > 0 && known < 3000 ? Math.round(known) : null,
+      };
+    },
+  )
+  .handler(async ({ data }): Promise<{ nutrition: RecipeNutrition | null }> => {
+    const key = `${data.title}|${data.servings}|${data.ingredients.join(";")}`.toLowerCase();
+    const cached = nutritionCache.get(key);
+    if (cached) return { nutrition: cached };
+
+    const ingredientLines = data.ingredients.map((i) => `- ${i}`).join("\n");
+    const referenceLine = data.knownCalories
+      ? `Referência: a receita foi estimada em cerca de ${data.knownCalories} kcal por porção; mantenha os valores coerentes com isso.`
+      : "";
+
+    try {
+      const result = (await callGateway(
+        [
+          {
+            role: "system",
+            content:
+              "Você é um nutricionista brasileiro que calcula a informação nutricional de receitas a partir dos ingredientes e das quantidades. Responda SOMENTE com JSON válido, sem markdown.",
+          },
+          {
+            role: "user",
+            content: `Receita: ${data.title}
+Rende ${data.servings} porções.
+Ingredientes:
+${ingredientLines}
+${referenceLine}
+Calcule os valores POR PORÇÃO (some os ingredientes e divida por ${data.servings}). Informe gramas de proteína, carboidrato e gordura. Não informe calorias.
+Formato: {"protein":0,"carbs":0,"fat":0}`,
+          },
+        ],
+        0.2,
+      )) as { protein?: number; carbs?: number; fat?: number };
+      const nutrition = nutritionFromMacros(
+        Number(result.protein),
+        Number(result.carbs),
+        Number(result.fat),
+      );
+      if (nutrition && nutrition.calories >= 30 && nutrition.calories <= 3000) {
+        nutritionCache.set(key, nutrition);
+        return { nutrition };
+      }
+    } catch (e) {
+      console.error("estimateRecipeNutrition", e);
+    }
+    return { nutrition: null };
   });

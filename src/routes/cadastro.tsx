@@ -174,7 +174,7 @@ function SignupPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full bg-charcoal border border-border rounded-xl px-4 py-3 text-cream focus:outline-none focus:border-blush/50 transition"
                   />
-                  <p className="text-xs text-cream/40 mt-1.5">Mínimo 6 caracteres</p>
+                  <p className="text-xs text-cream/40 mt-1.5">Mínimo de 6 caracteres</p>
                 </div>
 
                 {error && (
@@ -188,7 +188,7 @@ function SignupPage() {
                   disabled={loading}
                   className="w-full bg-blush text-charcoal rounded-full py-3 font-medium hover:bg-blush-deep transition disabled:opacity-50"
                 >
-                  {loading ? "criando..." : "criar conta"}
+                  {loading ? "criando…" : "criar conta"}
                 </button>
               </form>
 

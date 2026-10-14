@@ -17,6 +17,10 @@ import { PortionSlider } from "@/components/PortionSlider";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { NutritionCard } from "@/components/NutritionCard";
+import { useRecipeNutrition } from "@/hooks/use-recipe-nutrition";
+import { insertUserRecipe, saveRecipeNutrition } from "@/lib/user-recipes";
+import type { RecipeNutrition } from "@/lib/recipe-nutrition";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/minhas-receitas")({
@@ -49,6 +53,7 @@ type UserRecipe = {
   calories_per_serving: number | null;
   rating: number | null;
   notes: string | null;
+  nutrition?: unknown;
   times_cooked: number;
   cost_home_brl: number | null;
   cost_delivery_brl: number | null;
@@ -72,6 +77,7 @@ function RecipeDetailModal({
   onSaveNotes,
   onAteIt,
   onUndoAte,
+  onNutrition,
   justAte,
   hasEatenToday,
 }: {
@@ -84,6 +90,8 @@ function RecipeDetailModal({
   onAteIt: (r: UserRecipe) => void;
   /** Remove o registro de hoje (calorias e contagem de vezes feita) */
   onUndoAte: (r: UserRecipe) => void;
+  /** Guarda a informação nutricional calculada (receitas antigas, importadas ou do chat) */
+  onNutrition: (r: UserRecipe, n: RecipeNutrition) => void;
   justAte: boolean;
   /** Já existe um "Comi isso" desta receita registrado hoje */
   hasEatenToday: boolean;
@@ -92,6 +100,17 @@ function RecipeDetailModal({
   const [notesDraft, setNotesDraft] = useState(recipe.notes ?? "");
   const baseServings = 4;
   const ratio = servings / baseServings;
+  const { session: modalSession } = useAuth();
+  // A receita salva usa os macros guardados; se faltar, calcula uma vez e guarda
+  const { nutrition, status, retry } = useRecipeNutrition({
+    title: recipe.title,
+    ingredients: recipe.ingredients,
+    servings: baseServings,
+    initial: recipe.nutrition,
+    canEstimate: Boolean(modalSession),
+    knownCalories: recipe.calories_per_serving,
+    onEstimated: (n) => onNutrition(recipe, n),
+  });
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -171,7 +190,7 @@ function RecipeDetailModal({
         </div>
         <div className="p-6 space-y-6">
           <div className="flex gap-4 text-sm text-cream/60 flex-wrap">
-            {recipe.time_minutes && <span>⏱ {recipe.time_minutes} min</span>}
+            {recipe.time_minutes && <span>{recipe.time_minutes} min</span>}
             {recipe.difficulty && (
               <span className="inline-flex items-center gap-1.5">
                 <Gauge size={14} strokeWidth={1.5} />
@@ -232,7 +251,7 @@ function RecipeDetailModal({
                   {hasEatenToday && !justAte && (
                     <button
                       onClick={() => onUndoAte(recipe)}
-                      title="Apertou sem querer? Remove o registro de hoje"
+                      title="Apertou sem querer? Remova o registro de hoje"
                       className="px-3 py-2 rounded-full text-xs border border-red-400/40 text-red-400 hover:bg-red-400/10 transition inline-flex items-center gap-1.5"
                     >
                       <Undo2 className="h-3.5 w-3.5" strokeWidth={2} /> Desfazer registro
@@ -258,6 +277,7 @@ function RecipeDetailModal({
                 </div>
               )}
             </div>
+            <NutritionCard nutrition={nutrition} status={status} onRetry={retry} ratio={ratio} />
             <div>
               <div className="text-sm text-cream/50 mb-2">Suas anotações</div>
               <textarea
@@ -267,7 +287,7 @@ function RecipeDetailModal({
                   if (notesDraft !== (recipe.notes ?? "")) onSaveNotes(recipe.id, notesDraft);
                 }}
                 rows={2}
-                placeholder="Ex: ficou ótimo, da próxima usar menos sal..."
+                placeholder="Ex.: ficou ótimo, da próxima usar menos sal…"
                 className="w-full bg-charcoal border border-border rounded-xl p-3 text-cream placeholder:text-cream/45 text-sm focus:outline-none focus:border-blush/50 resize-none"
               />
             </div>
@@ -445,7 +465,7 @@ function ImportModal({
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 rows={8}
-                placeholder="Cole aqui o texto da receita (ingredientes, modo de preparo...)"
+                placeholder="Cole aqui o texto da receita (ingredientes, modo de preparo…)"
                 className="w-full bg-charcoal-light border border-border rounded-2xl p-4 text-cream placeholder:text-cream/40 text-sm focus:outline-none focus:border-blush/50 resize-none"
               />
               <div className="flex items-center gap-3">
@@ -477,7 +497,7 @@ function ImportModal({
           {tab === "url" && (
             <div className="space-y-4">
               <p className="text-sm text-cream/60">
-                Cole a URL de um site de receitas (TudoGostoso, Panelinha, blogs, etc).
+                Cole a URL de um site de receitas (TudoGostoso, Panelinha, blogs etc.).
               </p>
               <input
                 value={url}
@@ -540,9 +560,7 @@ function MyRecipesPage() {
       const [recipesRes, caloriesRes] = await Promise.all([
         supabase
           .from("user_recipes")
-          .select(
-            "id, title, image_url, image_photographer, image_photographer_url, category, time_minutes, difficulty, diet, description, is_favorite, ingredients, instructions, calories_per_serving, rating, notes, times_cooked, cost_home_brl, cost_delivery_brl",
-          )
+          .select("*")
           .eq("user_id", session.user.id)
           .order("created_at", { ascending: false }),
         supabase
@@ -723,34 +741,49 @@ function MyRecipesPage() {
     if (entry) void handleRemoveCalorie(entry.id);
   }
 
+  // Guarda a informação nutricional calculada e já a mostra nas calorias da receita.
+  async function handleNutrition(recipe: UserRecipe, n: RecipeNutrition) {
+    const fillCalories = !recipe.calories_per_serving;
+    setRecipes((prev) =>
+      prev.map((r) =>
+        r.id === recipe.id
+          ? { ...r, nutrition: n, calories_per_serving: r.calories_per_serving ?? n.calories }
+          : r,
+      ),
+    );
+    setSelectedRecipe((prev) =>
+      prev && prev.id === recipe.id
+        ? { ...prev, nutrition: n, calories_per_serving: prev.calories_per_serving ?? n.calories }
+        : prev,
+    );
+    await saveRecipeNutrition(recipe.id, n, fillCalories);
+  }
+
   async function handleImport(partial: Partial<UserRecipe>) {
     if (!session) return;
-    const { data, error } = await supabase
-      .from("user_recipes")
-      .insert({
-        user_id: session.user.id,
-        title: partial.title ?? "Receita importada",
-        description: partial.description ?? null,
-        category: partial.category ?? "prato principal",
-        instructions: partial.instructions ?? null,
-        ingredients: partial.ingredients ?? null,
-        diet: partial.diet ?? [],
-        calories_per_serving: partial.calories_per_serving ?? null,
-        cost_home_brl: partial.cost_home_brl ?? null,
-        cost_delivery_brl: partial.cost_delivery_brl ?? null,
-        time_minutes: partial.time_minutes ?? null,
-        difficulty: partial.difficulty ?? null,
-        is_favorite: false,
-      })
-      .select()
-      .single();
+    const { data, error } = await insertUserRecipe({
+      user_id: session.user.id,
+      title: partial.title ?? "Receita importada",
+      description: partial.description ?? null,
+      category: partial.category ?? "prato principal",
+      instructions: partial.instructions ?? null,
+      ingredients: partial.ingredients ?? null,
+      diet: partial.diet ?? [],
+      calories_per_serving: partial.calories_per_serving ?? null,
+      cost_home_brl: partial.cost_home_brl ?? null,
+      cost_delivery_brl: partial.cost_delivery_brl ?? null,
+      time_minutes: partial.time_minutes ?? null,
+      difficulty: partial.difficulty ?? null,
+      is_favorite: false,
+      nutrition: null,
+    });
     if (!error && data) setRecipes((prev) => [data as UserRecipe, ...prev]);
   }
 
   if (authLoading || !session)
     return (
       <div className="min-h-screen bg-charcoal text-cream flex items-center justify-center">
-        <div className="text-cream/50">Carregando...</div>
+        <div className="text-cream/50">Carregando…</div>
       </div>
     );
 
@@ -904,7 +937,7 @@ function MyRecipesPage() {
 
       <section className="max-w-7xl mx-auto px-6 lg:px-10 pb-24">
         {loading ? (
-          <div className="text-center py-16 text-cream/50">Carregando receitas...</div>
+          <div className="text-center py-16 text-cream/50">Carregando receitas…</div>
         ) : displayed.length > 0 ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 auto-rows-fr gap-6">
             {displayed.map((r) => (
@@ -978,7 +1011,7 @@ function MyRecipesPage() {
                       justAteId !== r.id && (
                         <button
                           onClick={(ev) => handleUndoAte(r, ev)}
-                          title="Apertou sem querer? Remove o registro de hoje"
+                          title="Apertou sem querer? Remova o registro de hoje"
                           className="ml-auto text-[11px] px-3 py-1 rounded-full border border-red-400/40 text-red-400 hover:bg-red-400/10 transition inline-flex items-center gap-1"
                         >
                           <Undo2 className="h-3 w-3" strokeWidth={2} /> Desfazer
@@ -1036,6 +1069,7 @@ function MyRecipesPage() {
           onSaveNotes={handleNotes}
           onAteIt={(r) => handleAteIt(r)}
           onUndoAte={(r) => handleUndoAte(r)}
+          onNutrition={handleNutrition}
           justAte={justAteId === selectedRecipe.id}
           hasEatenToday={calorieEntries.some((e) => e.recipe_id === selectedRecipe.id)}
         />

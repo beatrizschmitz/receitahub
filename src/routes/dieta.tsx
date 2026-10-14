@@ -7,6 +7,8 @@ import { useSubscription } from "@/contexts/SubscriptionContext";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { generateDietPlan, type DietPlan } from "@/lib/ai.functions";
+import { PLAN_TITLE } from "@/lib/plans";
+import { formatPerKg } from "@/lib/weight";
 import {
   ACTIVITY_OPTIONS,
   GOAL_LABEL,
@@ -35,13 +37,13 @@ export const Route = createFileRoute("/dieta")({
   component: DietPage,
   head: () => ({
     meta: [
-      { title: "Plano de dieta personalizado — receitahub" },
+      { title: "Plano alimentar personalizado — receitahub" },
       {
         name: "description",
         content:
           "Receba um cardápio de 7 dias com calorias, feito pela IA do receitahub para o seu objetivo e suas restrições alimentares.",
       },
-      { property: "og:title", content: "Plano de dieta personalizado — receitahub" },
+      { property: "og:title", content: "Plano alimentar personalizado — receitahub" },
       {
         property: "og:description",
         content: "Cardápio semanal com calorias, sob medida para o seu objetivo.",
@@ -133,15 +135,15 @@ function MacroBar({ t }: { t: NutritionTargets }) {
       <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-cream/65">
         <span>
           <span className="inline-block h-2 w-2 rounded-full bg-blush mr-1.5" />
-          Proteína {t.proteinG} g ({pct(p)}%)
+          Proteína ({pct(p)}%)
         </span>
         <span>
           <span className="inline-block h-2 w-2 rounded-full bg-blush/55 mr-1.5" />
-          Carboidrato {t.carbsG} g ({pct(c)}%)
+          Carboidrato ({pct(c)}%)
         </span>
         <span>
           <span className="inline-block h-2 w-2 rounded-full bg-blush/25 mr-1.5" />
-          Gordura {t.fatG} g ({pct(f)}%)
+          Gordura ({pct(f)}%)
         </span>
       </div>
     </div>
@@ -162,22 +164,47 @@ function TargetsPanel({ t, title }: { t: NutritionTargets; title: string }) {
           value={adj === 0 ? "manutenção" : `${adj > 0 ? "+" : ""}${adj} kcal`}
         />
       </div>
+      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <Stat
+          label="Proteína por dia"
+          value={`${t.proteinG} g`}
+          hint={`${formatPerKg(t.proteinG, t.inputs.weightKg)} g por kg de peso`}
+        />
+        <Stat
+          label="Carboidrato por dia"
+          value={`${t.carbsG} g`}
+          hint={`${formatPerKg(t.carbsG, t.inputs.weightKg)} g por kg de peso`}
+        />
+        <Stat
+          label="Gordura por dia"
+          value={`${t.fatG} g`}
+          hint={`${formatPerKg(t.fatG, t.inputs.weightKg)} g por kg de peso`}
+        />
+      </div>
       <div className="mt-4">
         <MacroBar t={t} />
       </div>
       <p className="mt-3 text-xs text-cream/55">
-        Fibras: ao menos {t.fiberG} g/dia · Água: cerca de{" "}
-        {(t.waterMl / 1000).toFixed(1).replace(".", ",")} L/dia
+        Fibras: ao menos {t.fiberG} g por dia. Água: cerca de{" "}
+        {(t.waterMl / 1000).toFixed(1).replace(".", ",")} L por dia.
       </p>
       {t.warnings.length > 0 && (
         <ul className="mt-3 space-y-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300 light:text-amber-900">
           {t.warnings.map((w, i) => (
-            <li key={i}>⚠ {w}</li>
+            <li key={i}>
+              <span className="font-medium">Atenção:</span> {w}
+            </li>
           ))}
         </ul>
       )}
     </div>
   );
+}
+
+/** " (1,8 g/kg)" quando o plano traz o peso usado no cálculo; vazio nos planos antigos. */
+function perKgSuffix(grams: number | null | undefined, n: NutritionTargets | undefined): string {
+  if (!grams || !n) return "";
+  return ` (${formatPerKg(grams, n.inputs.weightKg)} g/kg)`;
 }
 
 function DietPage() {
@@ -244,7 +271,7 @@ function DietPage() {
   if (authLoading || !session || subLoading) {
     return (
       <div className="min-h-screen bg-charcoal text-cream">
-        <div className="py-24 text-center text-cream/50">Carregando...</div>
+        <div className="py-24 text-center text-cream/50">Carregando…</div>
       </div>
     );
   }
@@ -257,12 +284,11 @@ function DietPage() {
             <Lock className="text-blush" size={24} />
           </div>
           <h1 className="font-display italic text-3xl text-blush mt-6">
-            Planos de dieta são exclusivos do premium
+            O plano alimentar é exclusivo do plano Premium
           </h1>
           <p className="text-cream/60 mt-3 leading-relaxed">
-            Seu plano atual é o{" "}
-            <span className="text-blush">{tier === "free" ? "gratuito" : tier}</span>. Assine o
-            premium para receber cardápios semanais com calorias, adaptados ao seu objetivo.
+            Seu plano atual é o <span className="text-blush">{PLAN_TITLE[tier]}</span>. Assine o
+            plano Premium para receber cardápios semanais com calorias, adaptados ao seu objetivo.
           </p>
           <Link
             to="/planos"
@@ -415,7 +441,7 @@ function DietPage() {
                   max={LIMITS.age.max}
                   value={body.age}
                   onChange={(e) => setBody({ ...body, age: e.target.value })}
-                  placeholder="Ex: 28"
+                  placeholder="Ex.: 28"
                   className={fieldClass}
                 />
               </div>
@@ -429,7 +455,7 @@ function DietPage() {
                   max={LIMITS.weightKg.max}
                   value={body.weight}
                   onChange={(e) => setBody({ ...body, weight: e.target.value })}
-                  placeholder="Ex: 68,5"
+                  placeholder="Ex.: 68,5"
                   className={fieldClass}
                 />
               </div>
@@ -442,7 +468,7 @@ function DietPage() {
                   max={LIMITS.heightCm.max}
                   value={body.height}
                   onChange={(e) => setBody({ ...body, height: e.target.value })}
-                  placeholder="Ex: 165"
+                  placeholder="Ex.: 165"
                   className={fieldClass}
                 />
               </div>
@@ -537,7 +563,7 @@ function DietPage() {
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
-              placeholder="Ex: treino 4x por semana, não gosto de peixe, cozinho só à noite"
+              placeholder="Ex.: treino 4 vezes por semana, não gosto de peixe, cozinho só à noite"
               className="mt-2 w-full rounded-lg border border-border bg-charcoal px-4 py-2.5 text-sm text-cream placeholder:text-cream/45 focus:border-blush focus:outline-none"
             />
           </div>
@@ -561,7 +587,7 @@ function DietPage() {
           >
             {busy ? (
               <>
-                <Loader2 className="animate-spin" size={16} /> Montando cardápio...
+                <Loader2 className="animate-spin" size={16} /> Montando cardápio…
               </>
             ) : (
               <>
@@ -668,7 +694,7 @@ function DietPage() {
                       <span className="text-xs text-cream/55">
                         {day.total_calories} kcal
                         {day.total_protein_g
-                          ? ` · P ${day.total_protein_g} g · C ${day.total_carbs_g} g · G ${day.total_fat_g} g`
+                          ? `, proteína ${day.total_protein_g} g${perKgSuffix(day.total_protein_g, plan.nutrition)}, carboidrato ${day.total_carbs_g} g${perKgSuffix(day.total_carbs_g, plan.nutrition)}, gordura ${day.total_fat_g} g${perKgSuffix(day.total_fat_g, plan.nutrition)}`
                           : ""}
                       </span>
                     ) : null}
@@ -683,7 +709,7 @@ function DietPage() {
                             {" "}
                             ({meal.calories} kcal
                             {meal.protein_g
-                              ? ` · P ${meal.protein_g} g · C ${meal.carbs_g} g · G ${meal.fat_g} g`
+                              ? `, proteína ${meal.protein_g} g, carboidrato ${meal.carbs_g} g, gordura ${meal.fat_g} g`
                               : ""}
                             )
                           </span>

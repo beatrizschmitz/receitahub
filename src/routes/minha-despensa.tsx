@@ -5,6 +5,14 @@ import { useServerFn } from "@tanstack/react-start";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { CATEGORIES, suggestCategory } from "@/lib/pantry-category";
+import {
+  UNITS,
+  displayQuantity,
+  formatQuantity,
+  parseQuantity,
+  suggestUnit,
+  type Unit,
+} from "@/lib/pantry-unit";
 import { categorizeIngredient } from "@/lib/ai.functions";
 
 export const Route = createFileRoute("/minha-despensa")({
@@ -65,9 +73,17 @@ function PantryPage() {
     name: "",
     category: "",
     quantity: "",
+    unit: "un" as Unit,
     purchased_at: todayISO(),
     expires_at: "",
   });
+  // Igual à categoria: enquanto true, a unidade acompanha o alimento digitado;
+  // vira false assim que a pessoa escolhe a unidade à mão.
+  const [unitAuto, setUnitAuto] = useState(true);
+  const unitAutoRef = useRef(true);
+  useEffect(() => {
+    unitAutoRef.current = unitAuto;
+  }, [unitAuto]);
   // Enquanto true, a categoria ainda não foi escolhida à mão e pode ser
   // atualizada pela sugestão automática. Vira false assim que o usuário
   // interage com o <select>, e a sugestão para de sobrescrever a escolha dele.
@@ -92,21 +108,31 @@ function PantryPage() {
       return;
     }
     if (!name.trim()) {
-      setNewItem((prev) => ({ ...prev, name, category: "" }));
+      setNewItem((prev) => ({ ...prev, name, category: "", unit: unitAuto ? "un" : prev.unit }));
       return;
     }
 
     // 1) Dicionário local: instantâneo e gratuito.
     const local = suggestCategory(name);
     if (local) {
-      setNewItem((prev) => ({ ...prev, name, category: local }));
+      setNewItem((prev) => ({
+        ...prev,
+        name,
+        category: local,
+        unit: unitAuto ? suggestUnit(name, local) : prev.unit,
+      }));
       return;
     }
 
     // 2) Não reconheceu: mostra "Outros" já e, depois que a pessoa para de
     // digitar, pergunta à IA. A resposta só vale se o nome ainda for o mesmo e
     // a categoria não tiver sido escolhida à mão nesse meio tempo.
-    setNewItem((prev) => ({ ...prev, name, category: "Outros" }));
+    setNewItem((prev) => ({
+      ...prev,
+      name,
+      category: "Outros",
+      unit: unitAuto ? suggestUnit(name, "Outros") : prev.unit,
+    }));
     if (name.trim().length < 3) return;
     const asked = name.trim();
     aiTimer.current = setTimeout(async () => {
@@ -115,7 +141,13 @@ function PantryPage() {
         const { category } = await runCategorize({ data: { name: asked } });
         if (!category) return;
         setNewItem((prev) =>
-          prev.name.trim() === asked && categoryAutoRef.current ? { ...prev, category } : prev,
+          prev.name.trim() === asked && categoryAutoRef.current
+            ? {
+                ...prev,
+                category,
+                unit: unitAutoRef.current ? suggestUnit(asked, category) : prev.unit,
+              }
+            : prev,
         );
       } catch (e) {
         console.error("categorizar ingrediente", e);
@@ -147,7 +179,7 @@ function PantryPage() {
   if (authLoading || !session) {
     return (
       <div className="min-h-screen bg-charcoal text-cream flex items-center justify-center">
-        <div className="text-cream/50">Carregando...</div>
+        <div className="text-cream/50">Carregando…</div>
       </div>
     );
   }
@@ -179,7 +211,8 @@ function PantryPage() {
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newItem.name.trim()) return;
-    if (!newItem.quantity.trim()) {
+    const amount = parseQuantity(newItem.quantity);
+    if (amount === null) {
       setQuantityError(true);
       return;
     }
@@ -197,7 +230,7 @@ function PantryPage() {
         user_id: session.user.id,
         name: newItem.name.trim(),
         category: newItem.category,
-        quantity: newItem.quantity.trim(),
+        quantity: formatQuantity(amount, newItem.unit),
         expires_in: expiresIn,
         purchased_at: newItem.purchased_at || null,
         expires_at: newItem.expires_at || null,
@@ -210,10 +243,12 @@ function PantryPage() {
         name: "",
         category: "",
         quantity: "",
+        unit: "un" as Unit,
         purchased_at: todayISO(),
         expires_at: "",
       });
       setCategoryAuto(true);
+      setUnitAuto(true);
       setShowForm(false);
     }
   };
@@ -258,7 +293,7 @@ function PantryPage() {
               statusFilter === "todos" ? "border-blush" : "border-border"
             }`}
           >
-            <div className="text-sm text-cream/50">Itens totais</div>
+            <div className="text-sm text-cream/50">Total de itens</div>
             <div className="font-display text-3xl text-cream mt-2">{items.length}</div>
           </button>
           <div className="bg-charcoal-light rounded-2xl p-5 border border-border">
@@ -356,7 +391,11 @@ function PantryPage() {
                 value={newItem.category}
                 onChange={(e) => {
                   setCategoryAuto(false);
-                  setNewItem({ ...newItem, category: e.target.value });
+                  setNewItem({
+                    ...newItem,
+                    category: e.target.value,
+                    unit: unitAuto ? suggestUnit(newItem.name, e.target.value) : newItem.unit,
+                  });
                 }}
                 className={`h-12 bg-charcoal border border-border rounded-xl px-4 focus:outline-none focus:border-blush/50 ${
                   newItem.category ? "text-cream" : "text-cream/40"
@@ -372,28 +411,49 @@ function PantryPage() {
                 ))}
               </select>
             </label>
-            <label className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1">
               <span className="invisible text-[11px] px-1">Quantidade</span>
-              <input
-                required
-                value={newItem.quantity}
-                onChange={(e) => {
-                  setQuantityError(false);
-                  setNewItem({ ...newItem, quantity: e.target.value });
-                }}
-                placeholder="Quantidade (ex: 2kg)"
-                maxLength={40}
-                aria-invalid={quantityError}
-                className={`h-12 bg-charcoal border rounded-xl px-4 text-cream placeholder:text-cream/40 focus:outline-none ${
-                  quantityError
-                    ? "border-red-500 focus:border-red-500"
-                    : "border-border focus:border-blush/50"
-                }`}
-              />
+              <div className="flex gap-2">
+                <input
+                  required
+                  inputMode="decimal"
+                  value={newItem.quantity}
+                  onChange={(e) => {
+                    setQuantityError(false);
+                    setNewItem({ ...newItem, quantity: e.target.value });
+                  }}
+                  placeholder="Quantidade"
+                  aria-label="Quantidade"
+                  maxLength={10}
+                  aria-invalid={quantityError}
+                  className={`h-12 min-w-0 flex-1 bg-charcoal border rounded-xl px-4 text-cream placeholder:text-cream/40 focus:outline-none ${
+                    quantityError
+                      ? "border-red-500 focus:border-red-500"
+                      : "border-border focus:border-blush/50"
+                  }`}
+                />
+                <select
+                  aria-label="Unidade de medida"
+                  value={newItem.unit}
+                  onChange={(e) => {
+                    setUnitAuto(false);
+                    setNewItem({ ...newItem, unit: e.target.value as Unit });
+                  }}
+                  className="h-12 w-[5.75rem] shrink-0 bg-charcoal border border-border rounded-xl px-2 text-cream focus:outline-none focus:border-blush/50"
+                >
+                  {UNITS.map((u) => (
+                    <option key={u} value={u}>
+                      {u}
+                    </option>
+                  ))}
+                </select>
+              </div>
               {quantityError && (
-                <span className="text-[11px] text-red-400 px-1">Informe a quantidade.</span>
+                <span className="text-[11px] text-red-400 px-1">
+                  Informe uma quantidade maior que zero.
+                </span>
               )}
-            </label>
+            </div>
             <label className="flex flex-col gap-1">
               <span className="text-[11px] text-cream/50 px-1">Comprado em</span>
               <input
@@ -445,7 +505,7 @@ function PantryPage() {
       {/* Items table */}
       <section className="max-w-7xl mx-auto px-6 lg:px-10 pb-24">
         {loading ? (
-          <div className="text-center py-16 text-cream/50">Carregando despensa...</div>
+          <div className="text-center py-16 text-cream/50">Carregando despensa…</div>
         ) : items.length === 0 ? (
           <div className="text-center py-24 border border-dashed border-border rounded-3xl">
             <Package className="mx-auto mb-4 h-9 w-9 text-cream/25" strokeWidth={1} />
@@ -501,7 +561,9 @@ function PantryPage() {
                     <span className="text-cream">{item.name}</span>
                   </div>
                   <div className="md:col-span-2 text-sm text-cream/60">{item.category}</div>
-                  <div className="md:col-span-2 text-sm text-cream/80">{item.quantity || "—"}</div>
+                  <div className="md:col-span-2 text-sm text-cream/80">
+                    {displayQuantity(item.quantity)}
+                  </div>
                   <div className="md:col-span-2 text-sm text-cream/60">
                     {formatDateBR(item.purchased_at)}
                   </div>

@@ -64,7 +64,7 @@ function SubscriptionPage() {
   if (authLoading || !session || loading) {
     return (
       <div className="min-h-screen bg-charcoal text-cream">
-        <div className="py-24 text-center text-cream/50">Carregando...</div>
+        <div className="py-24 text-center text-cream/50">Carregando…</div>
       </div>
     );
   }
@@ -180,7 +180,7 @@ function SubscriptionPage() {
 
         {isFree && (
           <p className="mt-6 text-sm text-cream/45">
-            Você está no plano gratuito. Assine o básico para conversar sem limites com o Chef
+            Você está no plano gratuito. Assine o plano Básico para conversar sem limites com o Chef
             Despensa e fotografar ingredientes.
           </p>
         )}

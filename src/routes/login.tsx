@@ -147,7 +147,7 @@ function LoginPage() {
               disabled={loading}
               className="w-full bg-blush text-charcoal rounded-full py-3 font-medium hover:bg-blush-deep transition disabled:opacity-50"
             >
-              {loading ? "entrando..." : "entrar"}
+              {loading ? "entrando…" : "entrar"}
             </button>
           </form>
 

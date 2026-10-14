@@ -3,6 +3,9 @@ import heroImg from "@/assets/landing-hero.jpg";
 import stepImg from "@/assets/landing-step.jpg";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { NutritionCard } from "@/components/NutritionCard";
+import { useRecipeNutrition } from "@/hooks/use-recipe-nutrition";
+import { insertUserRecipe } from "@/lib/user-recipes";
 import { useAuth } from "@/contexts/AuthContext";
 import { recipes as catalogRecipes } from "@/data/recipes";
 import { Clock, Gauge, Utensils } from "lucide-react";
@@ -77,6 +80,8 @@ const FALLBACK_FEATURED: FeaturedRecipe[] = catalogRecipes.slice(0, 5).map((r) =
   difficulty: r.difficulty,
   diet: r.diet,
   image_url: r.image,
+  servings: r.servings,
+  nutrition: r.nutrition,
 }));
 
 // Cache dos destaques. Sem ele a home dispara uma geração por IA a cada visita
@@ -134,6 +139,15 @@ function FeaturedModal({
     return () => window.removeEventListener("keydown", h);
   }, [onClose]);
 
+  const { session: modalSession } = useAuth();
+  const { nutrition, status, retry } = useRecipeNutrition({
+    title: recipe.title,
+    ingredients: recipe.ingredients,
+    servings: recipe.servings ?? 4,
+    initial: recipe.nutrition,
+    canEstimate: Boolean(modalSession),
+  });
+
   return (
     <div
       role="dialog"
@@ -185,7 +199,7 @@ function FeaturedModal({
         </RecipeCover>
         <div className="p-6 space-y-5">
           <div className="flex gap-4 text-sm text-cream/60">
-            {recipe.time_minutes && <span>⏱ {recipe.time_minutes} min</span>}
+            {recipe.time_minutes && <span>{recipe.time_minutes} min</span>}
             {recipe.difficulty && (
               <span className="inline-flex items-center gap-1.5">
                 <Gauge size={14} strokeWidth={1.5} />
@@ -223,6 +237,7 @@ function FeaturedModal({
               </div>
             </div>
           )}
+          <NutritionCard nutrition={nutrition} status={status} onRetry={retry} />
           <button
             onClick={() => onSave(recipe)}
             disabled={saving || saved}
@@ -273,7 +288,7 @@ function LandingPage() {
     }
     setSavingFeaturedId(recipe.id);
     try {
-      const { error } = await supabase.from("user_recipes").insert({
+      const { error } = await insertUserRecipe({
         user_id: session.user.id,
         title: recipe.title,
         description: recipe.description,
@@ -284,6 +299,7 @@ function LandingPage() {
         ingredients: recipe.ingredients,
         instructions: recipe.instructions,
         calories_per_serving: recipe.nutrition?.calories ?? null,
+        nutrition: recipe.nutrition ?? null,
         is_favorite: false,
         image_url: recipe.image_url ?? null,
         image_photographer: recipe.image_photographer ?? null,
@@ -540,7 +556,7 @@ function LandingPage() {
               disabled={loadingFeatured}
               className="px-4 py-2 rounded-full text-sm border border-blush/40 text-blush hover:bg-blush hover:text-charcoal transition disabled:opacity-50"
             >
-              {loadingFeatured ? "Gerando…" : "↻ Gerar novas"}
+              {loadingFeatured ? "Gerando…" : "Gerar novas"}
             </button>
             <Link
               to="/receitas"

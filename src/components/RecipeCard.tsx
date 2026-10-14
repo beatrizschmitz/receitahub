@@ -58,7 +58,7 @@ export function RecipeCard({ recipe, pantry = [] }: { recipe: Recipe; pantry?: s
         {/* Match badge */}
         <div className="absolute top-4 left-4 flex items-center gap-1.5 bg-charcoal/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-blush/30">
           <span className="h-1.5 w-1.5 rounded-full bg-blush animate-pulse" />
-          <span className="text-xs text-cream font-medium">{recipe.matchPercent}% match</span>
+          <span className="text-xs text-cream font-medium">{recipe.matchPercent}% na despensa</span>
         </div>
 
         {/* Save */}

@@ -12,19 +12,40 @@ export const Route = createFileRoute("/receitas")({
   head: () => ({
     meta: [
       { title: "Receitas — receitahub" },
-      { name: "description", content: "Receitas personalizadas geradas por IA com base na sua despensa." },
+      {
+        name: "description",
+        content: "Receitas personalizadas geradas por IA com base na sua despensa.",
+      },
     ],
   }),
 });
 
-const CATEGORY_FILTERS = ["todas", "prato principal", "massa", "salada", "sobremesa", "pães", "sopa", "lanche"];
+const CATEGORY_FILTERS = [
+  "todas",
+  "prato principal",
+  "massa",
+  "salada",
+  "sobremesa",
+  "pães",
+  "sopa",
+  "lanche",
+];
 const DIET_FILTERS = ["vegano", "vegetariano", "sem glúten", "low carb"];
 
 type Nutrition = { calories: number; protein: number; carbs: number; fat: number };
 type Recipe = {
-  id: string; title: string; description: string; category: string;
-  time: string; time_minutes: number; difficulty: string; diet: string[];
-  servings: number; ingredients: string[]; instructions: string; nutrition?: Nutrition;
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  time: string;
+  time_minutes: number;
+  difficulty: string;
+  diet: string[];
+  servings: number;
+  ingredients: string[];
+  instructions: string;
+  nutrition?: Nutrition;
   // Preenchidos pelo generate-recipes a partir do Pexels; null quando não achou.
   image_url?: string | null;
   image_photographer?: string | null;
@@ -43,7 +64,11 @@ function describeRecipeError(fnError: unknown, payloadError?: string): string {
     fnError instanceof Error ? fnError.message : ""
   }`;
 
-  if (status === 429 || status === 503 || /limite de requisi|rate limit|too many requests|sobrecarregad/i.test(raw)) {
+  if (
+    status === 429 ||
+    status === 503 ||
+    /limite de requisi|rate limit|too many requests|sobrecarregad/i.test(raw)
+  ) {
     return "Estamos preparando muitas receitas ao mesmo tempo — tenta de novo em instantes?";
   }
   if (status === 402 || /cr[ée]dito|quota|insufficient/i.test(raw)) {
@@ -148,8 +173,18 @@ function readFeaturedTitles(): string[] {
   }
 }
 
-function RecipeModal({ recipe, onClose, onSave, saving, saved }: {
-  recipe: Recipe; onClose: () => void; onSave: (r: Recipe) => void; saving: boolean; saved: boolean;
+function RecipeModal({
+  recipe,
+  onClose,
+  onSave,
+  saving,
+  saved,
+}: {
+  recipe: Recipe;
+  onClose: () => void;
+  onSave: (r: Recipe) => void;
+  saving: boolean;
+  saved: boolean;
 }) {
   const [servings, setServings] = useState(recipe.servings ?? 4);
   const ratio = servings / (recipe.servings ?? 4);
@@ -179,16 +214,38 @@ function RecipeModal({ recipe, onClose, onSave, saving, saved }: {
       onClick={onClose}
     >
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-      <div className="relative z-10 bg-charcoal border border-border rounded-t-3xl md:rounded-3xl w-full md:max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="relative z-10 bg-charcoal border border-border rounded-t-3xl md:rounded-3xl w-full md:max-w-2xl max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="relative rounded-t-3xl overflow-hidden">
-          <RecipeCover title={recipe.title} category={recipe.category} ingredients={recipe.ingredients} imageUrl={recipe.image_url} className="h-56" variant="modal" />
+          <RecipeCover
+            title={recipe.title}
+            category={recipe.category}
+            ingredients={recipe.ingredients}
+            imageUrl={recipe.image_url}
+            className="h-56"
+            variant="modal"
+          />
           {/* Sempre escuro, nos dois temas: a função aqui não é seguir a paleta e sim
               garantir que o texto leia por cima de uma foto qualquer. */}
           <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/85 via-black/40 to-transparent" />
-          <button onClick={onClose} className="absolute top-4 right-4 h-8 w-8 flex items-center justify-center rounded-full bg-charcoal/80 text-cream hover:bg-charcoal transition text-lg">×</button>
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 h-8 w-8 flex items-center justify-center rounded-full bg-charcoal/80 text-cream hover:bg-charcoal transition text-lg"
+          >
+            ×
+          </button>
           <div className="absolute bottom-4 left-6 right-6">
             <div className="flex flex-wrap gap-2 mb-2">
-              {recipe.diet?.map((d) => <span key={d} className="text-[10px] uppercase tracking-wider bg-blush/20 text-blush px-2 py-0.5 rounded-full">{d}</span>)}
+              {recipe.diet?.map((d) => (
+                <span
+                  key={d}
+                  className="text-[10px] uppercase tracking-wider bg-blush/20 text-blush px-2 py-0.5 rounded-full"
+                >
+                  {d}
+                </span>
+              ))}
             </div>
             <h2
               id="recipe-modal-title"
@@ -200,7 +257,18 @@ function RecipeModal({ recipe, onClose, onSave, saving, saved }: {
         </div>
         <div className="p-6 space-y-6">
           <div className="flex gap-4 text-sm text-cream/60">
-            <span className="inline-flex items-center gap-1.5"><Clock size={14} strokeWidth={1.5} />{recipe.time}</span><span className="inline-flex items-center gap-1.5"><Gauge size={14} strokeWidth={1.5} />{recipe.difficulty}</span><span className="inline-flex items-center gap-1.5"><Utensils size={14} strokeWidth={1.5} />{recipe.category}</span>
+            <span className="inline-flex items-center gap-1.5">
+              <Clock size={14} strokeWidth={1.5} />
+              {recipe.time}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Gauge size={14} strokeWidth={1.5} />
+              {recipe.difficulty}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Utensils size={14} strokeWidth={1.5} />
+              {recipe.category}
+            </span>
           </div>
           <p id="recipe-modal-desc" className="text-cream/70 text-sm leading-relaxed">
             {recipe.description}
@@ -226,22 +294,40 @@ function RecipeModal({ recipe, onClose, onSave, saving, saved }: {
           <div>
             <h3 className="text-sm font-medium text-cream/80 mb-3">Modo de preparo</h3>
             <div className="text-sm text-cream/80 leading-relaxed space-y-2">
-              {recipe.instructions?.split("\n").map((line, i) => <p key={i}>{line}</p>)}
+              {recipe.instructions?.split("\n").map((line, i) => (
+                <p key={i}>{line}</p>
+              ))}
             </div>
           </div>
           {recipe.nutrition && (
             <div>
               <h3 className="text-sm font-medium text-cream/80 mb-3">
-                Informação nutricional <span className="text-cream/40 normal-case">(estimativa via IA)</span>
+                Informação nutricional{" "}
+                <span className="text-cream/40 normal-case">(estimativa via IA)</span>
               </h3>
               <div className="grid grid-cols-4 gap-3">
                 {[
-                  { label: "Calorias", value: Math.round(recipe.nutrition.calories * ratio), unit: "kcal" },
-                  { label: "Proteínas", value: Math.round(recipe.nutrition.protein * ratio), unit: "g" },
-                  { label: "Carboidratos", value: Math.round(recipe.nutrition.carbs * ratio), unit: "g" },
+                  {
+                    label: "Calorias",
+                    value: Math.round(recipe.nutrition.calories * ratio),
+                    unit: "kcal",
+                  },
+                  {
+                    label: "Proteínas",
+                    value: Math.round(recipe.nutrition.protein * ratio),
+                    unit: "g",
+                  },
+                  {
+                    label: "Carboidratos",
+                    value: Math.round(recipe.nutrition.carbs * ratio),
+                    unit: "g",
+                  },
                   { label: "Gorduras", value: Math.round(recipe.nutrition.fat * ratio), unit: "g" },
                 ].map((n) => (
-                  <div key={n.label} className="bg-charcoal-light border border-border rounded-xl p-3 text-center">
+                  <div
+                    key={n.label}
+                    className="bg-charcoal-light border border-border rounded-xl p-3 text-center"
+                  >
                     <div className="text-lg font-display text-cream">{n.value}</div>
                     <div className="text-[10px] text-cream/50">{n.unit}</div>
                     <div className="text-[10px] text-cream/40 mt-0.5">{n.label}</div>
@@ -250,37 +336,81 @@ function RecipeModal({ recipe, onClose, onSave, saving, saved }: {
               </div>
             </div>
           )}
-          <button onClick={() => onSave(recipe)} disabled={saving || saved}
-            className={`w-full py-3 rounded-full text-sm font-medium transition ${saved ? "bg-green-500/20 text-green-400 border border-green-500/30 cursor-default" : "bg-blush text-charcoal hover:bg-blush-deep disabled:opacity-60"}`}>
-            {saved ? "Salva em minhas receitas" : saving ? "Salvando…" : "Salvar em minhas receitas"}
+          <button
+            onClick={() => onSave(recipe)}
+            disabled={saving || saved}
+            className={`w-full py-3 rounded-full text-sm font-medium transition ${saved ? "bg-green-500/20 text-green-400 border border-green-500/30 cursor-default" : "bg-blush text-charcoal hover:bg-blush-deep disabled:opacity-60"}`}
+          >
+            {saved
+              ? "Salva em minhas receitas"
+              : saving
+                ? "Salvando…"
+                : "Salvar em minhas receitas"}
           </button>
-          <RecipePhotoCredit imageUrl={recipe.image_url} photographer={recipe.image_photographer} photographerUrl={recipe.image_photographer_url} className="text-center" />
+          <RecipePhotoCredit
+            imageUrl={recipe.image_url}
+            photographer={recipe.image_photographer}
+            photographerUrl={recipe.image_photographer_url}
+            className="text-center"
+          />
         </div>
       </div>
     </div>
   );
 }
 
-function RecipeCard({ recipe, pantry, onOpen, onSave, saving, saved }: {
-  recipe: Recipe; pantry: string[]; onOpen: (r: Recipe) => void;
-  onSave: (r: Recipe) => void; saving: boolean; saved: boolean;
+function RecipeCard({
+  recipe,
+  pantry,
+  onOpen,
+  onSave,
+  saving,
+  saved,
+}: {
+  recipe: Recipe;
+  pantry: string[];
+  onOpen: (r: Recipe) => void;
+  onSave: (r: Recipe) => void;
+  saving: boolean;
+  saved: boolean;
 }) {
-  const matchPct = recipe.ingredients?.length > 0
-    ? Math.round((pantry.filter((p) => recipe.ingredients.some((ing) => ing.toLowerCase().includes(p.toLowerCase()))).length / recipe.ingredients.length) * 100)
-    : 0;
+  const matchPct =
+    recipe.ingredients?.length > 0
+      ? Math.round(
+          (pantry.filter((p) =>
+            recipe.ingredients.some((ing) => ing.toLowerCase().includes(p.toLowerCase())),
+          ).length /
+            recipe.ingredients.length) *
+            100,
+        )
+      : 0;
 
   return (
     <article className="group relative flex h-full flex-col bg-charcoal-light rounded-2xl overflow-hidden border border-border hover:border-blush/40 transition-all">
       <div className="flex flex-1 flex-col cursor-pointer" onClick={() => onOpen(recipe)}>
         <div className="relative overflow-hidden">
-          <RecipeCover title={recipe.title} category={recipe.category} ingredients={recipe.ingredients} imageUrl={recipe.image_url} className="aspect-[4/3]" variant="card" />
+          <RecipeCover
+            title={recipe.title}
+            category={recipe.category}
+            ingredients={recipe.ingredients}
+            imageUrl={recipe.image_url}
+            className="aspect-[4/3]"
+            variant="card"
+          />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
           {pantry.length > 0 && matchPct > 0 && (
-            <div className="absolute top-3 left-3 bg-charcoal/80 backdrop-blur-sm rounded-full px-2.5 py-1 text-xs text-blush">{matchPct}% na despensa</div>
+            <div className="absolute top-3 left-3 bg-charcoal/80 backdrop-blur-sm rounded-full px-2.5 py-1 text-xs text-blush">
+              {matchPct}% na despensa
+            </div>
           )}
           <div className="absolute bottom-3 left-3 flex gap-1.5 flex-wrap">
             {recipe.diet?.slice(0, 2).map((d) => (
-              <span key={d} className="text-[9px] uppercase tracking-wider bg-blush/20 text-blush px-2 py-0.5 rounded-full">{d}</span>
+              <span
+                key={d}
+                className="text-[9px] uppercase tracking-wider bg-blush/20 text-blush px-2 py-0.5 rounded-full"
+              >
+                {d}
+              </span>
             ))}
           </div>
         </div>
@@ -292,20 +422,52 @@ function RecipeCard({ recipe, pantry, onOpen, onSave, saving, saved }: {
               {recipe.time}
             </span>
           </div>
-          <h3 className="font-display text-xl text-cream leading-tight mb-2 line-clamp-2 group-hover:text-blush transition-colors">{recipe.title}</h3>
+          <h3 className="font-display text-xl text-cream leading-tight mb-2 line-clamp-2 group-hover:text-blush transition-colors">
+            {recipe.title}
+          </h3>
           <p className="text-sm text-cream/60 line-clamp-2">{recipe.description}</p>
         </div>
       </div>
 
       {/* Botão salvar rápido */}
-      <button onClick={(e) => { e.stopPropagation(); onSave(recipe); }} disabled={saving || saved} title={saved ? "Salva!" : "Salvar receita"}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onSave(recipe);
+        }}
+        disabled={saving || saved}
+        title={saved ? "Salva!" : "Salvar receita"}
         className={`absolute bottom-4 right-4 h-9 w-9 flex items-center justify-center rounded-full border transition-all ${
-          saved ? "bg-green-500/20 border-green-500/40 text-green-400" : "bg-charcoal border-border text-cream/60 hover:bg-blush hover:border-blush hover:text-charcoal"
-        }`}>
-        {saved
-          ? <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-          : <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z" /></svg>
-        }
+          saved
+            ? "bg-green-500/20 border-green-500/40 text-green-400"
+            : "bg-charcoal border-border text-cream/60 hover:bg-blush hover:border-blush hover:text-charcoal"
+        }`}
+      >
+        {saved ? (
+          <svg
+            className="h-4 w-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+          </svg>
+        ) : (
+          <svg
+            className="h-4 w-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z"
+            />
+          </svg>
+        )}
       </button>
     </article>
   );
@@ -327,14 +489,25 @@ function RecipesPage() {
   const sessionSeed = useRef(Math.random().toString(36).slice(2));
 
   useEffect(() => {
-    if (!session) { setPantry([]); return; }
+    if (!session) {
+      setPantry([]);
+      return;
+    }
     void (async () => {
-      const { data } = await supabase.from("pantry_items").select("name").eq("user_id", session.user.id);
+      const { data } = await supabase
+        .from("pantry_items")
+        .select("name")
+        .eq("user_id", session.user.id);
       setPantry((data ?? []).map((r) => r.name));
     })();
   }, [session]);
 
-  async function loadRecipes(category: string, diets: string[], searchTerm = "", forceFresh = false) {
+  async function loadRecipes(
+    category: string,
+    diets: string[],
+    searchTerm = "",
+    forceFresh = false,
+  ) {
     const isDefault = isDefaultView(category, diets, searchTerm);
 
     // "Sugestões para você" sem nenhum filtro: leva fixa da semana, só sai do
@@ -364,11 +537,16 @@ function RecipesPage() {
 
     sessionSeed.current = Math.random().toString(36).slice(2);
 
-    setLoading(true); setError(null);
+    setLoading(true);
+    setError(null);
     try {
       const { data, error: fnError } = await supabase.functions.invoke("generate-recipes", {
         body: {
-          category, diet: diets, ingredients: pantry, search: searchTerm, seed: sessionSeed.current,
+          category,
+          diet: diets,
+          ingredients: pantry,
+          search: searchTerm,
+          seed: sessionSeed.current,
           // Só na leva padrão faz sentido pedir pra IA não repetir os destaques
           // da home — nas buscas/filtros o pedido já é outro.
           exclude: isDefault ? readFeaturedTitles() : [],
@@ -394,10 +572,14 @@ function RecipesPage() {
     } catch (e) {
       setRecipes([]);
       setError(describeRecipeError(e));
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   }
 
-  useEffect(() => { loadRecipes(activeCategory, activeDiets); }, [activeCategory, activeDiets]);
+  useEffect(() => {
+    loadRecipes(activeCategory, activeDiets);
+  }, [activeCategory, activeDiets]);
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -412,10 +594,17 @@ function RecipesPage() {
     setSavingId(recipe.id);
     try {
       const { error } = await supabase.from("user_recipes").insert({
-        user_id: session.user.id, title: recipe.title, description: recipe.description,
-        category: recipe.category, time_minutes: recipe.time_minutes, difficulty: recipe.difficulty,
-        diet: recipe.diet, ingredients: recipe.ingredients, instructions: recipe.instructions,
-        calories_per_serving: recipe.nutrition?.calories ?? null, is_favorite: false,
+        user_id: session.user.id,
+        title: recipe.title,
+        description: recipe.description,
+        category: recipe.category,
+        time_minutes: recipe.time_minutes,
+        difficulty: recipe.difficulty,
+        diet: recipe.diet,
+        ingredients: recipe.ingredients,
+        instructions: recipe.instructions,
+        calories_per_serving: recipe.nutrition?.calories ?? null,
+        is_favorite: false,
         image_url: recipe.image_url ?? null,
         image_photographer: recipe.image_photographer ?? null,
         image_photographer_url: recipe.image_photographer_url ?? null,
@@ -431,19 +620,28 @@ function RecipesPage() {
     } catch (e) {
       console.error(e);
       toast.error("Não consegui salvar a receita. Tente novamente.");
+    } finally {
+      setSavingId(null);
     }
-    finally { setSavingId(null); }
   }
 
   return (
     <div className="min-h-screen bg-charcoal text-cream">
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Inter:wght@300;400;500;600&display=swap" />
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Inter:wght@300;400;500;600&display=swap"
+      />
 
       {!session && (
         <div className="bg-blush/10 border-b border-blush/30">
           <div className="max-w-7xl mx-auto px-6 lg:px-10 py-3 flex items-center gap-4 flex-wrap">
             <span className="text-sm text-cream/80">Navegando como visitante.</span>
-            <Link to="/cadastro" className="ml-auto px-4 py-1.5 rounded-full bg-blush text-charcoal text-xs font-medium hover:bg-blush-deep transition">Criar conta</Link>
+            <Link
+              to="/cadastro"
+              className="ml-auto px-4 py-1.5 rounded-full bg-blush text-charcoal text-xs font-medium hover:bg-blush-deep transition"
+            >
+              Criar conta
+            </Link>
           </div>
         </div>
       )}
@@ -453,22 +651,38 @@ function RecipesPage() {
         <div className="max-w-7xl mx-auto px-6 lg:px-10 pt-20 pb-16 relative">
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-blush/30 bg-blush/5 text-xs text-blush mb-8">
-              <span className="h-1.5 w-1.5 rounded-full bg-blush animate-pulse" />IA gerando receitas em tempo real
+              <span className="h-1.5 w-1.5 rounded-full bg-blush animate-pulse" />
+              IA gerando receitas em tempo real
             </div>
             <h1 className="text-5xl md:text-6xl lg:text-7xl leading-[1.05] text-cream">
-              Hoje você pode cozinhar<br />
-              <em className="text-blush font-display italic">algo delicioso</em>{" "}sem ir ao mercado.
+              Hoje você pode cozinhar
+              <br />
+              <em className="text-blush font-display italic">algo delicioso</em> sem ir ao mercado.
             </h1>
           </div>
           <div className="mt-12 space-y-4">
             <form onSubmit={handleSearch} className="relative max-w-2xl flex gap-2">
               <div className="relative flex-1">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-cream/40">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-cream/40"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
+                  />
                 </svg>
-                <input value={search} onChange={(e) => setSearch(e.target.value)}
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
                   placeholder="Buscar por ingrediente ou prato… pressione Enter para gerar"
-                  className="w-full bg-charcoal-light border border-border rounded-full pl-14 pr-6 py-4 text-cream placeholder:text-cream/40 focus:outline-none focus:border-blush/50 focus:ring-2 focus:ring-blush/20 transition" />
+                  className="w-full bg-charcoal-light border border-border rounded-full pl-14 pr-6 py-4 text-cream placeholder:text-cream/40 focus:outline-none focus:border-blush/50 focus:ring-2 focus:ring-blush/20 transition"
+                />
               </div>
               <button
                 type="submit"
@@ -487,19 +701,32 @@ function RecipesPage() {
             </p>
             <div className="flex flex-wrap items-center gap-2">
               {CATEGORY_FILTERS.map((f) => (
-                <button key={f} onClick={() => setActiveCategory(f)}
-                  className={`px-4 py-2 rounded-full text-sm first-letter:uppercase transition border ${activeCategory === f ? "bg-blush text-charcoal border-blush" : "bg-transparent text-cream/70 border-border hover:border-blush/40 hover:text-cream"}`}>{f}</button>
+                <button
+                  key={f}
+                  onClick={() => setActiveCategory(f)}
+                  className={`px-4 py-2 rounded-full text-sm first-letter:uppercase transition border ${activeCategory === f ? "bg-blush text-charcoal border-blush" : "bg-transparent text-cream/70 border-border hover:border-blush/40 hover:text-cream"}`}
+                >
+                  {f}
+                </button>
               ))}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm text-cream/40">dieta:</span>
               {DIET_FILTERS.map((f) => (
-                <button key={f} onClick={() => toggleDiet(f)}
-                  className={`px-4 py-2 rounded-full text-sm first-letter:uppercase transition border ${activeDiets.includes(f) ? "bg-blush/20 text-blush border-blush/50" : "bg-transparent text-cream/60 border-border hover:text-blush hover:border-blush/40"}`}>{f}</button>
+                <button
+                  key={f}
+                  onClick={() => toggleDiet(f)}
+                  className={`px-4 py-2 rounded-full text-sm first-letter:uppercase transition border ${activeDiets.includes(f) ? "bg-blush/20 text-blush border-blush/50" : "bg-transparent text-cream/60 border-border hover:text-blush hover:border-blush/40"}`}
+                >
+                  {f}
+                </button>
               ))}
-              <button onClick={() => loadRecipes(activeCategory, activeDiets, search, true)} disabled={loading}
+              <button
+                onClick={() => loadRecipes(activeCategory, activeDiets, search, true)}
+                disabled={loading}
                 title="Sugere outras receitas aleatórias, mantendo os filtros atuais"
-                className="ml-auto px-4 py-2 rounded-full text-sm border border-blush/40 text-blush hover:bg-blush hover:text-charcoal transition disabled:opacity-50">
+                className="ml-auto px-4 py-2 rounded-full text-sm border border-blush/40 text-blush hover:bg-blush hover:text-charcoal transition disabled:opacity-50"
+              >
                 {loading ? "Gerando…" : "↻ Gerar novas"}
               </button>
             </div>
@@ -509,19 +736,39 @@ function RecipesPage() {
 
       <section className="max-w-7xl mx-auto px-6 lg:px-10 pb-24">
         <div className="flex items-baseline justify-between mb-8">
-          <h2 className="font-display text-3xl text-cream"><em className="italic text-blush">Sugestões</em> para você</h2>
-          <span className="text-sm text-cream/60">{loading ? "carregando…" : `${recipes.length} receitas`}</span>
+          <h2 className="font-display text-3xl text-cream">
+            <em className="italic text-blush">Sugestões</em> para você
+          </h2>
+          <span className="text-sm text-cream/60">
+            {loading ? "carregando…" : `${recipes.length} receitas`}
+          </span>
         </div>
-        {error && <div className="mb-6 p-4 rounded-xl border border-red-500/30 bg-red-500/10 text-red-200 light:border-red-600/50 light:bg-red-50 light:text-red-800 text-sm">{error}</div>}
+        {error && (
+          <div className="mb-6 p-4 rounded-xl border border-red-500/30 bg-red-500/10 text-red-200 light:border-red-600/50 light:bg-red-50 light:text-red-800 text-sm">
+            {error}
+          </div>
+        )}
         {loading ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Array.from({ length: 6 }).map((_, i) => <div key={i} className="aspect-[4/3] rounded-2xl bg-charcoal-light border border-border animate-pulse" />)}
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className="aspect-[4/3] rounded-2xl bg-charcoal-light border border-border animate-pulse"
+              />
+            ))}
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 auto-rows-fr gap-6">
             {recipes.map((r) => (
-              <RecipeCard key={r.id} recipe={r} pantry={pantry} onOpen={setSelectedRecipe}
-                onSave={handleSave} saving={savingId === r.id} saved={savedIds.has(r.id)} />
+              <RecipeCard
+                key={r.id}
+                recipe={r}
+                pantry={pantry}
+                onOpen={setSelectedRecipe}
+                onSave={handleSave}
+                saving={savingId === r.id}
+                saved={savedIds.has(r.id)}
+              />
             ))}
           </div>
         )}
@@ -549,13 +796,20 @@ function RecipesPage() {
       </section>
 
       {selectedRecipe && (
-        <RecipeModal recipe={selectedRecipe} onClose={() => setSelectedRecipe(null)}
-          onSave={handleSave} saving={savingId === selectedRecipe.id} saved={savedIds.has(selectedRecipe.id)} />
+        <RecipeModal
+          recipe={selectedRecipe}
+          onClose={() => setSelectedRecipe(null)}
+          onSave={handleSave}
+          saving={savingId === selectedRecipe.id}
+          saved={savedIds.has(selectedRecipe.id)}
+        />
       )}
     </div>
   );
 
   function toggleDiet(diet: string) {
-    setActiveDiets((prev) => prev.includes(diet) ? prev.filter((d) => d !== diet) : [...prev, diet]);
+    setActiveDiets((prev) =>
+      prev.includes(diet) ? prev.filter((d) => d !== diet) : [...prev, diet],
+    );
   }
 }

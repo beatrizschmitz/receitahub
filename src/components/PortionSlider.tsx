@@ -14,7 +14,13 @@ type PortionSliderProps = {
 // styles.css — o preenchimento até o valor atual é feito com um gradiente
 // que lê --range-progress, porque o WebKit não tem um pseudo-elemento nativo
 // para "parte já preenchida" da trilha (o Firefox tem, via ::-moz-range-progress).
-export function PortionSlider({ value, onChange, min = 1, max = 12, marks = [1, 6, 12] }: PortionSliderProps) {
+export function PortionSlider({
+  value,
+  onChange,
+  min = 1,
+  max = 12,
+  marks = [1, 6, 12],
+}: PortionSliderProps) {
   const percent = ((value - min) / (max - min)) * 100;
 
   return (

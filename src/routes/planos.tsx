@@ -129,8 +129,8 @@ function PlansPage() {
           {session && !loading && lockedByCancellation && currentPeriodEnd && (
             <p className="mt-4 rounded-xl border border-blush/25 bg-blush/[0.06] px-4 py-3 text-sm text-cream/70 max-w-xl">
               Sua assinatura do plano {PLAN_LABEL[tier]} foi cancelada e vale até{" "}
-              {formatDate(currentPeriodEnd)}. A partir dessa data você poderá contratar outro
-              plano — até lá seu plano atual continua ativo.
+              {formatDate(currentPeriodEnd)}. A partir dessa data você poderá contratar outro plano
+              — até lá seu plano atual continua ativo.
             </p>
           )}
 
@@ -240,7 +240,6 @@ function PlansPage() {
             );
           })}
         </div>
-
 
         <p className="text-xs text-cream/55 mt-12">
           Projeto acadêmico — os dados do cartão são enviados por HTTPS ao gateway de pagamento e

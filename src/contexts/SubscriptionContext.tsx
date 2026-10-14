@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import { cancelMySubscription, downgradeToFree } from "@/lib/subscription.functions";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   FREE_CHAT_DAILY_LIMIT,
@@ -112,52 +114,51 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     else setChatUsedToday((n) => n + 1);
   }, [user]);
 
-  // DEMO: período de cobrança encurtado pra 1 minuto (era 30 dias) só pra dar
-  // pra mostrar pro professor o ciclo cancelar → esperar → trocar de plano
-  // sem esperar um mês de verdade. Voltar pra 30 dias antes de ir pra produção.
-  const BILLING_PERIOD_MS = 60 * 1000;
+  const runCancel = useServerFn(cancelMySubscription);
+  const runDowngrade = useServerFn(downgradeToFree);
 
+  // Planos pagos NUNCA são concedidos pelo navegador: a tabela subscriptions
+  // não aceita essa escrita (ver a migração 20261014120000). Quem sobe de plano
+  // passa por /pagamento (payForPlan). Aqui só existe a volta para o gratuito,
+  // validada no servidor.
   const changePlan = useCallback(
     async (next: PlanTier) => {
-      if (!user) return false;
-      const periodEnd =
-        next === "free" ? null : new Date(Date.now() + BILLING_PERIOD_MS).toISOString();
-      const { error } = await supabase.from("subscriptions").upsert(
-        {
-          user_id: user.id,
-          plan_tier: next,
-          status: "active",
-          current_period_end: periodEnd,
-        },
-        { onConflict: "user_id" },
-      );
-      if (error) {
-        console.error("changePlan", error);
+      if (!user || next !== "free") return false;
+      try {
+        const result = await runDowngrade();
+        if (!result.ok) {
+          console.error("changePlan", result.message);
+          return false;
+        }
+      } catch (e) {
+        console.error("changePlan", e);
         return false;
       }
-      setTier(next);
+      setTier("free");
       setStatus("active");
-      setCurrentPeriodEnd(periodEnd);
+      setCurrentPeriodEnd(null);
       return true;
     },
-    [user],
+    [user, runDowngrade],
   );
 
   // Cancelar preserva current_period_end: o acesso pago vale até lá
   const cancelSubscription = useCallback(async () => {
     if (!user) return false;
-    const { error } = await supabase
-      .from("subscriptions")
-      .update({ status: "canceled" })
-      .eq("user_id", user.id);
-    if (error) {
-      console.error("cancelSubscription", error);
+    try {
+      const result = await runCancel();
+      if (!result.ok) {
+        console.error("cancelSubscription", result.message);
+        return false;
+      }
+    } catch (e) {
+      console.error("cancelSubscription", e);
       return false;
     }
     setStatus("canceled");
     setTier((current) => effectiveTier(current, "canceled", currentPeriodEnd));
     return true;
-  }, [user, currentPeriodEnd]);
+  }, [user, currentPeriodEnd, runCancel]);
 
   const chatLimit = tier === "free" ? FREE_CHAT_DAILY_LIMIT : null;
   const chatRemaining = chatLimit === null ? null : Math.max(0, chatLimit - chatUsedToday);

@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Check, Loader2, Lock, Pencil, Sparkles, Trash2, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -7,6 +7,18 @@ import { useSubscription } from "@/contexts/SubscriptionContext";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { generateDietPlan, type DietPlan } from "@/lib/ai.functions";
+import {
+  ACTIVITY_OPTIONS,
+  GOAL_LABEL,
+  LIMITS,
+  calculateTargets,
+  detectGoal,
+  validateBody,
+  type Activity,
+  type BodyData,
+  type NutritionTargets,
+  type Sex,
+} from "@/lib/nutrition";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -59,6 +71,115 @@ const OBJECTIVES = [
   "reduzir o colesterol",
 ];
 
+const BODY_STORAGE_KEY = "receitahub:dieta-corpo";
+
+type BodyForm = {
+  sex: Sex | "";
+  age: string;
+  weight: string;
+  height: string;
+  activity: Activity | "";
+  pregnant: boolean;
+};
+
+const EMPTY_BODY: BodyForm = {
+  sex: "",
+  age: "",
+  weight: "",
+  height: "",
+  activity: "",
+  pregnant: false,
+};
+
+const toNumber = (v: string) => Number(v.replace(",", "."));
+
+function bodyFromForm(f: BodyForm): Partial<BodyData> {
+  return {
+    sex: f.sex || undefined,
+    age: toNumber(f.age),
+    weightKg: toNumber(f.weight),
+    heightCm: toNumber(f.height),
+    activity: f.activity || undefined,
+    pregnantOrLactating: f.sex === "feminino" && f.pregnant,
+  };
+}
+
+const fieldClass =
+  "mt-2 w-full rounded-lg border border-border bg-charcoal px-4 py-2.5 text-sm text-cream placeholder:text-cream/45 focus:border-blush focus:outline-none";
+
+function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div className="rounded-xl border border-border px-4 py-3">
+      <div className="text-xs text-cream/50">{label}</div>
+      <div className="font-display text-2xl text-blush mt-1">{value}</div>
+      {hint && <div className="text-[11px] text-cream/45 mt-0.5">{hint}</div>}
+    </div>
+  );
+}
+
+function MacroBar({ t }: { t: NutritionTargets }) {
+  const p = t.proteinG * 4;
+  const c = t.carbsG * 4;
+  const f = t.fatG * 9;
+  const total = p + c + f || 1;
+  const pct = (n: number) => Math.round((n / total) * 100);
+  return (
+    <div>
+      <div className="flex h-2.5 overflow-hidden rounded-full">
+        <div className="bg-blush" style={{ width: `${pct(p)}%` }} />
+        <div className="bg-blush/55" style={{ width: `${pct(c)}%` }} />
+        <div className="bg-blush/25" style={{ width: `${pct(f)}%` }} />
+      </div>
+      <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-cream/65">
+        <span>
+          <span className="inline-block h-2 w-2 rounded-full bg-blush mr-1.5" />
+          Proteína {t.proteinG} g ({pct(p)}%)
+        </span>
+        <span>
+          <span className="inline-block h-2 w-2 rounded-full bg-blush/55 mr-1.5" />
+          Carboidrato {t.carbsG} g ({pct(c)}%)
+        </span>
+        <span>
+          <span className="inline-block h-2 w-2 rounded-full bg-blush/25 mr-1.5" />
+          Gordura {t.fatG} g ({pct(f)}%)
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function TargetsPanel({ t, title }: { t: NutritionTargets; title: string }) {
+  const adj = t.adjustmentKcal;
+  return (
+    <div className="rounded-2xl border border-blush/30 bg-blush/[0.05] p-5">
+      <h3 className="text-sm text-blush">{title}</h3>
+      <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Stat label="Meta diária" value={`${t.kcal} kcal`} />
+        <Stat label="Gasto total estimado" value={`${t.tdee} kcal`} hint={`basal ${t.bmr} kcal`} />
+        <Stat label="IMC" value={String(t.bmi).replace(".", ",")} hint={t.bmiClass} />
+        <Stat
+          label="Ajuste do objetivo"
+          value={adj === 0 ? "manutenção" : `${adj > 0 ? "+" : ""}${adj} kcal`}
+        />
+      </div>
+      <div className="mt-4">
+        <MacroBar t={t} />
+      </div>
+      <p className="mt-3 text-xs text-cream/55">
+        Fibras: ao menos {t.fiberG} g/dia · Água: cerca de{" "}
+        {(t.waterMl / 1000).toFixed(1).replace(".", ",")} L/dia
+      </p>
+      {t.warnings.length > 0 && (
+        <ul className="mt-3 space-y-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300 light:text-amber-900">
+          {t.warnings.map((w, i) => (
+            <li key={i}>⚠ {w}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function DietPage() {
   const { session, loading: authLoading } = useAuth();
   const { hasDietPlans, loading: subLoading, tier } = useSubscription();
@@ -68,14 +189,40 @@ function DietPage() {
   const [objective, setObjective] = useState("");
   const [restrictions, setRestrictions] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
+  const [body, setBody] = useState<BodyForm>(EMPTY_BODY);
   const [busy, setBusy] = useState(false);
   const [plan, setPlan] = useState<DietPlan | null>(null);
-  const [history, setHistory] = useState<{ id: string; title: string | null; created_at: string }[]>(
-    [],
-  );
+  const [history, setHistory] = useState<
+    { id: string; title: string | null; created_at: string }[]
+  >([]);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(BODY_STORAGE_KEY);
+      if (saved) setBody({ ...EMPTY_BODY, ...(JSON.parse(saved) as Partial<BodyForm>) });
+    } catch {
+      /* sem storage: segue com o formulário vazio */
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(BODY_STORAGE_KEY, JSON.stringify(body));
+    } catch {
+      /* ignorado */
+    }
+  }, [body]);
+
+  // Prévia ao vivo das metas, antes de gerar o cardápio. Precisa ficar antes
+  // dos returns antecipados abaixo (regras dos hooks).
+  const preview = useMemo(() => {
+    const b = bodyFromForm(body);
+    if (!validateBody(b).ok) return null;
+    return calculateTargets(b as BodyData, detectGoal(objective));
+  }, [body, objective]);
 
   useEffect(() => {
     if (!authLoading && !session) navigate({ to: "/login" });
@@ -137,6 +284,12 @@ function DietPage() {
       toast.error("Escolha ou descreva seu objetivo.");
       return;
     }
+    const bodyData = bodyFromForm(body);
+    const check = validateBody(bodyData);
+    if (!check.ok) {
+      toast.error(check.message);
+      return;
+    }
     setBusy(true);
     setPlan(null);
     try {
@@ -150,6 +303,7 @@ function DietPage() {
           restrictions,
           notes: notes.trim(),
           pantry: (pantry ?? []).map((p) => p.name),
+          body: bodyData as BodyData,
         },
       });
       setPlan(result);
@@ -160,7 +314,13 @@ function DietPage() {
           title: result.title ?? objective.trim(),
           objective: objective.trim(),
           restrictions,
-          profile_notes: notes.trim() || null,
+          profile_notes:
+            [
+              `${bodyData.sex}, ${bodyData.age} anos, ${bodyData.weightKg} kg, ${bodyData.heightCm} cm, atividade: ${bodyData.activity}`,
+              notes.trim(),
+            ]
+              .filter(Boolean)
+              .join(" | ") || null,
           generated_plan: result as unknown as Json,
         })
         .select("id, title, created_at")
@@ -218,14 +378,113 @@ function DietPage() {
       <main className="max-w-4xl mx-auto px-6 lg:px-10 py-14">
         <h1 className="font-display italic text-4xl text-blush mt-3">Seu cardápio sob medida</h1>
         <p className="text-cream/60 mt-3">
-          Conte seu objetivo e suas restrições. A IA monta 7 dias de refeições com calorias,
-          priorizando o que já está na sua despensa.
+          Informe seus dados e seu objetivo. Calculamos quanto você precisa comer por dia (calorias,
+          proteínas, carboidratos e gorduras) e a IA monta 7 dias de refeições com as quantidades
+          exatas de cada alimento, priorizando o que já está na sua despensa.
         </p>
 
         <form
           onSubmit={handleGenerate}
           className="mt-8 rounded-2xl border border-border bg-cream/[0.02] p-6 space-y-6"
         >
+          <div>
+            <label className="text-sm text-cream/70">Seus dados</label>
+            <div className="mt-2 grid grid-cols-2 gap-3 md:grid-cols-4">
+              <div>
+                <span className="text-xs text-cream/50">Sexo biológico</span>
+                <select
+                  value={body.sex}
+                  onChange={(e) =>
+                    setBody({ ...body, sex: e.target.value as Sex | "", pregnant: false })
+                  }
+                  className={fieldClass}
+                >
+                  <option value="" disabled>
+                    Selecione
+                  </option>
+                  <option value="feminino">Feminino</option>
+                  <option value="masculino">Masculino</option>
+                </select>
+              </div>
+              <div>
+                <span className="text-xs text-cream/50">Idade (anos)</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={LIMITS.age.min}
+                  max={LIMITS.age.max}
+                  value={body.age}
+                  onChange={(e) => setBody({ ...body, age: e.target.value })}
+                  placeholder="Ex: 28"
+                  className={fieldClass}
+                />
+              </div>
+              <div>
+                <span className="text-xs text-cream/50">Peso (kg)</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.1"
+                  min={LIMITS.weightKg.min}
+                  max={LIMITS.weightKg.max}
+                  value={body.weight}
+                  onChange={(e) => setBody({ ...body, weight: e.target.value })}
+                  placeholder="Ex: 68,5"
+                  className={fieldClass}
+                />
+              </div>
+              <div>
+                <span className="text-xs text-cream/50">Altura (cm)</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={LIMITS.heightCm.min}
+                  max={LIMITS.heightCm.max}
+                  value={body.height}
+                  onChange={(e) => setBody({ ...body, height: e.target.value })}
+                  placeholder="Ex: 165"
+                  className={fieldClass}
+                />
+              </div>
+            </div>
+            <div className="mt-3">
+              <span className="text-xs text-cream/50">Nível de atividade física</span>
+              <select
+                value={body.activity}
+                onChange={(e) => setBody({ ...body, activity: e.target.value as Activity | "" })}
+                className={fieldClass}
+              >
+                <option value="" disabled>
+                  Selecione
+                </option>
+                {ACTIVITY_OPTIONS.map((a) => (
+                  <option key={a.key} value={a.key}>
+                    {a.label} — {a.hint}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {body.sex === "feminino" && (
+              <label className="mt-3 flex items-center gap-2 text-xs text-cream/65">
+                <input
+                  type="checkbox"
+                  checked={body.pregnant}
+                  onChange={(e) => setBody({ ...body, pregnant: e.target.checked })}
+                  className="accent-[var(--blush)]"
+                />
+                Estou gestante ou amamentando
+              </label>
+            )}
+            <p className="mt-2 text-[11px] text-cream/45">
+              São dados de saúde: usamos apenas para calcular seu plano, que fica salvo na sua
+              conta. Você pode apagá-los quando quiser em Perfil. Veja a{" "}
+              <Link to="/privacidade" className="underline hover:text-blush">
+                Política de Privacidade
+              </Link>
+              .
+            </p>
+          </div>
+
           <div>
             <label className="text-sm text-cream/70">Objetivo</label>
             <div className="mt-2 flex flex-wrap gap-2">
@@ -282,6 +541,18 @@ function DietPage() {
               className="mt-2 w-full rounded-lg border border-border bg-charcoal px-4 py-2.5 text-sm text-cream placeholder:text-cream/45 focus:border-blush focus:outline-none"
             />
           </div>
+
+          {preview ? (
+            <TargetsPanel
+              t={preview}
+              title={`Suas metas diárias — ${GOAL_LABEL[preview.inputs.goal].toLowerCase()}`}
+            />
+          ) : (
+            <p className="rounded-xl border border-dashed border-border px-4 py-3 text-xs text-cream/50">
+              Preencha sexo, idade, peso, altura e atividade física para ver suas metas diárias
+              calculadas.
+            </p>
+          )}
 
           <button
             type="submit"
@@ -376,10 +647,16 @@ function DietPage() {
           <section className="mt-10">
             <h2 className="font-display italic text-3xl text-blush">{plan.title}</h2>
             <p className="text-cream/65 mt-2">{plan.summary}</p>
-            {plan.daily_calories_target && (
-              <p className="text-sm text-blush mt-2">
-                Meta diária: {plan.daily_calories_target} kcal
-              </p>
+            {plan.nutrition ? (
+              <div className="mt-4">
+                <TargetsPanel t={plan.nutrition} title="Metas usadas neste plano" />
+              </div>
+            ) : (
+              plan.daily_calories_target && (
+                <p className="text-sm text-blush mt-2">
+                  Meta diária: {plan.daily_calories_target} kcal
+                </p>
+              )
             )}
 
             <div className="mt-6 grid gap-4">
@@ -388,7 +665,12 @@ function DietPage() {
                   <div className="flex items-baseline justify-between">
                     <h3 className="text-cream">{day.day}</h3>
                     {day.total_calories ? (
-                      <span className="text-xs text-cream/40">{day.total_calories} kcal</span>
+                      <span className="text-xs text-cream/55">
+                        {day.total_calories} kcal
+                        {day.total_protein_g
+                          ? ` · P ${day.total_protein_g} g · C ${day.total_carbs_g} g · G ${day.total_fat_g} g`
+                          : ""}
+                      </span>
                     ) : null}
                   </div>
                   <ul className="mt-3 space-y-2.5">
@@ -397,8 +679,25 @@ function DietPage() {
                         <span className="text-blush/80">{meal.meal}</span>
                         <span className="text-cream/80"> — {meal.name}</span>
                         {meal.calories ? (
-                          <span className="text-cream/55"> ({meal.calories} kcal)</span>
+                          <span className="text-cream/55">
+                            {" "}
+                            ({meal.calories} kcal
+                            {meal.protein_g
+                              ? ` · P ${meal.protein_g} g · C ${meal.carbs_g} g · G ${meal.fat_g} g`
+                              : ""}
+                            )
+                          </span>
                         ) : null}
+                        {meal.items && meal.items.length > 0 && (
+                          <ul className="mt-1 ml-4 list-disc text-xs text-cream/60 space-y-0.5">
+                            {meal.items.map((it, k) => (
+                              <li key={k}>
+                                {it.food}
+                                {it.quantity ? ` — ${it.quantity}` : ""}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                         {meal.description && (
                           <p className="text-cream/45 text-xs mt-0.5">{meal.description}</p>
                         )}
@@ -408,6 +707,13 @@ function DietPage() {
                 </div>
               ))}
             </div>
+
+            <p className="mt-6 text-[11px] leading-relaxed text-cream/45">
+              Estimativa calculada com a equação de Mifflin-St Jeor e faixas usuais de
+              macronutrientes. Não substitui a avaliação de um nutricionista — em caso de doença,
+              gravidez, uso de medicamentos ou transtorno alimentar, procure acompanhamento
+              profissional antes de seguir qualquer plano.
+            </p>
 
             {plan.tips?.length ? (
               <div className="mt-6 rounded-2xl border border-blush/30 bg-blush/[0.05] p-5">

@@ -2,6 +2,15 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { effectiveTier } from "@/lib/plans";
 import { CATEGORIES, isValidCategory } from "@/lib/pantry-category";
+import {
+  GOAL_LABEL,
+  calculateTargets,
+  detectGoal,
+  kcalFromMacros,
+  validateBody,
+  type BodyData,
+  type NutritionTargets,
+} from "@/lib/nutrition";
 
 // Gateway de IA compatível com a API OpenAI (/v1/chat/completions).
 // Trocar de provedor é só mudar estas variáveis de ambiente — nenhum código muda.
@@ -52,7 +61,9 @@ async function callGateway(messages: GatewayMessage[], temperature = 0.8) {
   const payload = { model: AI_MODEL, temperature, messages };
   let resp = await fetchAI(key, payload);
   if (!resp.ok && backupKey && RETRYABLE_STATUS.includes(resp.status)) {
-    console.warn(`ai.functions: chave principal esgotada/indisponível (status ${resp.status}), tentando chave backup`);
+    console.warn(
+      `ai.functions: chave principal esgotada/indisponível (status ${resp.status}), tentando chave backup`,
+    );
     resp = await fetchAI(backupKey, payload);
   }
 
@@ -61,7 +72,10 @@ async function callGateway(messages: GatewayMessage[], temperature = 0.8) {
     console.error("ai gateway", resp.status, detail);
     if (resp.status === 429) throw new Error("Muitas requisições. Tente em instantes.");
     if (resp.status === 402) throw new Error("Créditos de IA esgotados.");
-    if (resp.status === 503) throw new Error("O chef está temporariamente sobrecarregado. Tente novamente em alguns instantes.");
+    if (resp.status === 503)
+      throw new Error(
+        "O chef está temporariamente sobrecarregado. Tente novamente em alguns instantes.",
+      );
     throw new Error("Erro ao falar com a IA.");
   }
 
@@ -128,7 +142,7 @@ export type RecognizedPhoto = {
 
 export const recognizePhoto = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { image: string; pantry?: string[] }) => {
+  .validator((input: { image: string; pantry?: string[] }) => {
     if (!input?.image || typeof input.image !== "string" || input.image.length > 8_000_000) {
       throw new Error("Imagem inválida.");
     }
@@ -173,62 +187,227 @@ Formato exato:
     };
   });
 
+export type DietMeal = {
+  meal: string;
+  name: string;
+  description?: string;
+  /** Alimentos com a quantidade exata de cada um */
+  items?: { food: string; quantity: string }[];
+  calories?: number | null;
+  protein_g?: number | null;
+  carbs_g?: number | null;
+  fat_g?: number | null;
+};
+
+export type DietDay = {
+  day: string;
+  meals: DietMeal[];
+  total_calories?: number | null;
+  total_protein_g?: number | null;
+  total_carbs_g?: number | null;
+  total_fat_g?: number | null;
+};
+
 export type DietPlan = {
   title: string;
   summary: string;
   daily_calories_target: number | null;
   tips: string[];
-  days: {
-    day: string;
-    meals: { meal: string; name: string; description?: string; calories?: number | null }[];
-    total_calories?: number | null;
-  }[];
+  days: DietDay[];
+  /** Metas calculadas (gasto basal, gasto total, macros) usadas para montar o plano */
+  nutrition?: NutritionTargets;
 };
+
+const WEEK_DAYS = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
+
+const num = (v: unknown): number => {
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+};
+
+/**
+ * Deixa o plano internamente consistente: as calorias de cada refeição saem dos
+ * macros (4/4/9), e os totais do dia são a soma das refeições. Assim a IA não
+ * consegue "inventar" um total que não bate com o que está no prato.
+ */
+function normalizePlan(plan: DietPlan, t: NutritionTargets): DietPlan {
+  const days = (Array.isArray(plan.days) ? plan.days : []).slice(0, 7).map((d, i) => {
+    const meals = (Array.isArray(d.meals) ? d.meals : []).map((m) => {
+      const p = num(m.protein_g);
+      const c = num(m.carbs_g);
+      const f = num(m.fat_g);
+      const hasMacros = p + c + f > 0;
+      return {
+        ...m,
+        protein_g: hasMacros ? Math.round(p) : null,
+        carbs_g: hasMacros ? Math.round(c) : null,
+        fat_g: hasMacros ? Math.round(f) : null,
+        calories: hasMacros ? kcalFromMacros(p, c, f) : num(m.calories) || null,
+        items: Array.isArray(m.items)
+          ? m.items
+              .filter((it) => it && typeof it.food === "string")
+              .map((it) => ({ food: String(it.food), quantity: String(it.quantity ?? "") }))
+          : [],
+      } satisfies DietMeal;
+    });
+    const sum = (k: "calories" | "protein_g" | "carbs_g" | "fat_g") =>
+      meals.reduce((acc, m) => acc + (m[k] ?? 0), 0);
+    return {
+      day: d.day || WEEK_DAYS[i] || `Dia ${i + 1}`,
+      meals,
+      total_calories: sum("calories"),
+      total_protein_g: sum("protein_g"),
+      total_carbs_g: sum("carbs_g"),
+      total_fat_g: sum("fat_g"),
+    } satisfies DietDay;
+  });
+  return {
+    title: plan.title,
+    summary: plan.summary,
+    tips: Array.isArray(plan.tips) ? plan.tips : [],
+    daily_calories_target: t.kcal,
+    days,
+    nutrition: t,
+  };
+}
+
+/** Dias cujo total fugiu mais de `tolerance` da meta — voltam para a IA corrigir. */
+function offTargetDays(plan: DietPlan, t: NutritionTargets, tolerance = 0.07): string[] {
+  const out: string[] = [];
+  for (const d of plan.days) {
+    const total = d.total_calories ?? 0;
+    const diff = (total - t.kcal) / t.kcal;
+    if (Math.abs(diff) > tolerance || d.meals.length < 5) {
+      out.push(
+        `${d.day}: ${total} kcal (meta ${t.kcal}; ${d.meals.length} refeições, precisam ser 5)`,
+      );
+    }
+  }
+  if (plan.days.length < 7) out.push(`o plano tem só ${plan.days.length} dias; precisa ter 7`);
+  return out;
+}
 
 export const generateDietPlan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
-    (input: { objective: string; restrictions?: string[]; notes?: string; pantry?: string[] }) => {
+  .validator(
+    (input: {
+      objective: string;
+      restrictions?: string[];
+      notes?: string;
+      pantry?: string[];
+      body: BodyData;
+    }) => {
       if (!input?.objective || input.objective.trim().length < 3) {
         throw new Error("Descreva seu objetivo.");
       }
+      const body: BodyData = {
+        sex: input.body?.sex,
+        age: Number(input.body?.age),
+        weightKg: Number(input.body?.weightKg),
+        heightCm: Number(input.body?.heightCm),
+        activity: input.body?.activity,
+        pregnantOrLactating: input.body?.sex === "feminino" && !!input.body?.pregnantOrLactating,
+      };
+      const check = validateBody(body);
+      if (!check.ok) throw new Error(check.message);
       return {
         objective: input.objective.trim().slice(0, 300),
         restrictions: (input.restrictions ?? []).slice(0, 20).map((r) => String(r).slice(0, 40)),
         notes: (input.notes ?? "").slice(0, 800),
         pantry: (input.pantry ?? []).slice(0, 80).map((p) => String(p).slice(0, 60)),
+        body,
       };
     },
   )
   .handler(async ({ data, context }): Promise<DietPlan> => {
     await requirePlan(context.supabase as unknown as SupabaseLike, context.userId, ["premium"]);
 
-    const result = (await callGateway(
-      [
-        {
-          role: "system",
-          content:
-            "Você é um nutricionista e chef brasileiro. Monte cardápios semanais realistas com ingredientes acessíveis no Brasil. Responda SEMPRE em português do Brasil e SOMENTE com JSON válido, sem markdown.",
-        },
-        {
-          role: "user",
-          content: `Monte um plano alimentar de 7 dias.
-Objetivo: ${data.objective}
-Restrições: ${data.restrictions.join(", ") || "nenhuma"}
-Observações: ${data.notes || "nenhuma"}
-Itens já disponíveis na despensa: ${data.pantry.join(", ") || "não informado"}
+    // As metas são recalculadas aqui: o servidor nunca confia nos números do navegador.
+    const goal = detectGoal(data.objective);
+    const t = calculateTargets(data.body, goal);
 
-Formato exato:
-{"title":"","summary":"","daily_calories_target":2000,"tips":["dica"],"days":[{"day":"Segunda","total_calories":1950,"meals":[{"meal":"Café da manhã","name":"","description":"","calories":350}]}]}
-Inclua café da manhã, almoço, lanche e jantar em cada dia.`,
-        },
-      ],
-      0.9,
-    )) as DietPlan;
+    const mealLines = t.meals
+      .map(
+        (m) =>
+          `- ${m.meal}: ~${m.kcal} kcal | proteína ${m.proteinG} g | carboidrato ${m.carbsG} g | gordura ${m.fatG} g`,
+      )
+      .join("\n");
 
-    return result;
+    const colesterolRule =
+      goal === "colesterol"
+        ? "\n6. Foco em reduzir o colesterol: gorduras saturadas baixas, muita fibra solúvel (aveia, frutas, leguminosas), peixes e oleaginosas, sem frituras nem embutidos."
+        : "";
+
+    const basePrompt = `Monte um plano alimentar de 7 dias (Segunda a Domingo) para esta pessoa.
+
+PERFIL
+- Sexo: ${t.inputs.sex}, ${t.inputs.age} anos, ${t.inputs.weightKg} kg, ${t.inputs.heightCm} cm (IMC ${t.bmi}, ${t.bmiClass})
+- Objetivo: ${data.objective} (${GOAL_LABEL[goal]})
+- Restrições alimentares: ${data.restrictions.join(", ") || "nenhuma"}
+- Observações (alergias, condições de saúde, rotina): ${data.notes || "nenhuma"}
+- Itens que a pessoa já tem na despensa (priorize): ${data.pantry.join(", ") || "não informado"}
+
+METAS DIÁRIAS JÁ CALCULADAS (siga à risca, em TODOS os 7 dias)
+- Total: ${t.kcal} kcal | proteína ${t.proteinG} g | carboidrato ${t.carbsG} g | gordura ${t.fatG} g | fibras ${t.fiberG} g
+Distribuição por refeição (5 refeições por dia):
+${mealLines}
+
+REGRAS
+1. Cada refeição deve ter a lista de alimentos com a QUANTIDADE EXATA de cada um (gramas, mL ou medida caseira, ex.: "arroz integral cozido — 120 g (4 col. de sopa)").
+2. Informe os macros de cada refeição (protein_g, carbs_g, fat_g) coerentes com os alimentos e quantidades listados. NÃO informe calorias: elas são calculadas a partir dos macros.
+3. A soma dos macros de cada dia tem que ficar dentro de ±5% das metas acima.
+4. Use alimentos comuns e baratos no Brasil, respeite TODAS as restrições e alergias, varie os pratos ao longo da semana e priorize a despensa.
+5. Não faça nenhuma promessa de tratamento nem indique suplementos ou medicamentos.${colesterolRule}
+
+Responda SOMENTE com JSON válido neste formato exato:
+{"title":"","summary":"resumo curto do plano e da lógica das metas","tips":["dica prática"],"days":[{"day":"Segunda","meals":[{"meal":"Café da manhã","name":"nome do prato","description":"modo de preparo curto","items":[{"food":"alimento","quantity":"quantidade"}],"protein_g":0,"carbs_g":0,"fat_g":0}]}]}`;
+
+    const system =
+      "Você é um nutricionista brasileiro que monta cardápios com cálculo preciso de porções e macronutrientes. Responda SEMPRE em português do Brasil e SOMENTE com JSON válido, sem markdown.";
+
+    let plan = normalizePlan(
+      (await callGateway(
+        [
+          { role: "system", content: system },
+          { role: "user", content: basePrompt },
+        ],
+        0.6,
+      )) as DietPlan,
+      t,
+    );
+
+    // Uma segunda chance quando algum dia fugiu da meta
+    const problems = offTargetDays(plan, t);
+    if (problems.length > 0) {
+      try {
+        const fixed = normalizePlan(
+          (await callGateway(
+            [
+              { role: "system", content: system },
+              {
+                role: "user",
+                content: `${basePrompt}
+
+ATENÇÃO: uma versão anterior saiu fora da meta nestes pontos:
+${problems.join("\n")}
+Refaça o plano COMPLETO (7 dias, 5 refeições por dia) ajustando as quantidades e os macros para cada dia fechar em ${t.kcal} kcal (±5%).`,
+              },
+            ],
+            0.4,
+          )) as DietPlan,
+          t,
+        );
+        if (offTargetDays(fixed, t).length <= problems.length) plan = fixed;
+      } catch (e) {
+        console.error("generateDietPlan retry", e);
+      }
+    }
+
+    if (plan.days.length === 0) {
+      throw new Error("A IA não conseguiu montar o cardápio. Tente de novo.");
+    }
+    return plan;
   });
-
 
 // Categoria de um ingrediente que o dicionário local da despensa não reconheceu.
 // Não exige plano pago (a despensa é gratuita). O cache em memória evita chamar
@@ -237,8 +416,10 @@ const categoryCache = new Map<string, string>();
 
 export const categorizeIngredient = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { name: string }) => {
-    const name = String(input?.name ?? "").trim().slice(0, 80);
+  .validator((input: { name: string }) => {
+    const name = String(input?.name ?? "")
+      .trim()
+      .slice(0, 80);
     if (name.length < 2) throw new Error("Nome inválido.");
     return { name };
   })

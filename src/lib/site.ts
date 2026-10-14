@@ -11,3 +11,8 @@ export const SITE_URL = "https://receitahub.vercel.app";
 // sociais fazem cache da URL — depois de um redeploy o link cacheado apontaria
 // para um arquivo que não existe mais. public/ não recebe hash.
 export const OG_IMAGE_URL = `${SITE_URL}/og-image.jpg`;
+
+// Canal de contato para pedidos de privacidade (LGPD). Enquanto estiver vazio,
+// as páginas de Privacidade e Termos orientam a fazer tudo pelo próprio app
+// (Perfil → Apagar dados / Excluir conta). Preencha com um e-mail da equipe.
+export const CONTACT_EMAIL = "";

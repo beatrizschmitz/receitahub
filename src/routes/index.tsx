@@ -15,7 +15,11 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "receitahub — cozinhe com o que você já tem" },
-      { name: "description", content: "IA que transforma os ingredientes da sua despensa em receitas reais. Menos desperdício, mais sabor." },
+      {
+        name: "description",
+        content:
+          "IA que transforma os ingredientes da sua despensa em receitas reais. Menos desperdício, mais sabor.",
+      },
       { property: "og:title", content: "receitahub — cozinhe com o que você já tem" },
       { property: "og:image", content: OG_IMAGE_URL },
     ],
@@ -23,15 +27,34 @@ export const Route = createFileRoute("/")({
 });
 
 const steps = [
-  { n: "01", title: "Cadastre sua despensa", text: "Adicione o que você tem em casa em segundos — manualmente ou por foto da prateleira." },
-  { n: "02", title: "A IA monta o cardápio", text: "Receitas reais, em português, calculadas a partir dos seus ingredientes e preferências alimentares." },
-  { n: "03", title: "Cozinhe sem sobras", text: "Ajuste porções, substitua ingredientes e marque o que já usou. A despensa atualiza sozinha." },
+  {
+    n: "01",
+    title: "Cadastre sua despensa",
+    text: "Adicione o que você tem em casa em segundos — manualmente ou por foto da prateleira.",
+  },
+  {
+    n: "02",
+    title: "A IA monta o cardápio",
+    text: "Receitas reais, em português, calculadas a partir dos seus ingredientes e preferências alimentares.",
+  },
+  {
+    n: "03",
+    title: "Cozinhe sem sobras",
+    text: "Ajuste porções, substitua ingredientes e marque o que já usou. A despensa atualiza sozinha.",
+  },
 ];
 
 type FeaturedRecipe = {
-  id: string; title: string; category: string; time_minutes: number | null;
-  description: string | null; ingredients: string[] | null; instructions: string | null;
-  difficulty: string | null; diet: string[] | null; servings?: number;
+  id: string;
+  title: string;
+  category: string;
+  time_minutes: number | null;
+  description: string | null;
+  ingredients: string[] | null;
+  instructions: string | null;
+  difficulty: string | null;
+  diet: string[] | null;
+  servings?: number;
   // Vêm do generate-recipes (Pexels) ou de user_recipes; null cai no emoji.
   image_url?: string | null;
   image_photographer?: string | null;
@@ -92,9 +115,18 @@ function writeFeaturedCache(recipes: FeaturedRecipe[]) {
 }
 
 // Mini modal para receitas em destaque
-function FeaturedModal({ recipe, onClose, onSave, saving, saved }: {
-  recipe: FeaturedRecipe; onClose: () => void;
-  onSave: (r: FeaturedRecipe) => void; saving: boolean; saved: boolean;
+function FeaturedModal({
+  recipe,
+  onClose,
+  onSave,
+  saving,
+  saved,
+}: {
+  recipe: FeaturedRecipe;
+  onClose: () => void;
+  onSave: (r: FeaturedRecipe) => void;
+  saving: boolean;
+  saved: boolean;
 }) {
   useEffect(() => {
     const h = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -111,36 +143,71 @@ function FeaturedModal({ recipe, onClose, onSave, saving, saved }: {
       onClick={onClose}
     >
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-      <div className="relative z-10 bg-charcoal border border-border rounded-t-3xl md:rounded-3xl w-full md:max-w-2xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="relative z-10 bg-charcoal border border-border rounded-t-3xl md:rounded-3xl w-full md:max-w-2xl max-h-[85vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         <RecipeCover
-          title={recipe.title} category={recipe.category} ingredients={recipe.ingredients}
-          imageUrl={recipe.image_url} className="h-48 rounded-t-3xl" variant="solo"
+          title={recipe.title}
+          category={recipe.category}
+          ingredients={recipe.ingredients}
+          imageUrl={recipe.image_url}
+          className="h-48 rounded-t-3xl"
+          variant="solo"
         >
           {/* Sempre escuro, nos dois temas: a função aqui não é seguir a paleta e sim
               garantir que o texto leia por cima de uma foto qualquer. */}
           <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/85 via-black/40 to-transparent" />
-          <button onClick={onClose} className="absolute top-4 right-4 h-8 w-8 flex items-center justify-center rounded-full bg-charcoal/80 text-cream hover:bg-charcoal transition text-lg">×</button>
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 h-8 w-8 flex items-center justify-center rounded-full bg-charcoal/80 text-cream hover:bg-charcoal transition text-lg"
+          >
+            ×
+          </button>
           <div className="absolute bottom-4 left-6">
             <div className="flex flex-wrap gap-2 mb-1">
-              {recipe.diet?.map((d) => <span key={d} className="text-[10px] uppercase tracking-wider bg-blush/20 text-blush px-2 py-0.5 rounded-full">{d}</span>)}
+              {recipe.diet?.map((d) => (
+                <span
+                  key={d}
+                  className="text-[10px] uppercase tracking-wider bg-blush/20 text-blush px-2 py-0.5 rounded-full"
+                >
+                  {d}
+                </span>
+              ))}
             </div>
-            <h2 id="featured-modal-title" className="font-display text-2xl text-cream leading-tight drop-shadow-lg">{recipe.title}</h2>
+            <h2
+              id="featured-modal-title"
+              className="font-display text-2xl text-cream leading-tight drop-shadow-lg"
+            >
+              {recipe.title}
+            </h2>
           </div>
         </RecipeCover>
         <div className="p-6 space-y-5">
           <div className="flex gap-4 text-sm text-cream/60">
             {recipe.time_minutes && <span>⏱ {recipe.time_minutes} min</span>}
-            {recipe.difficulty && <span className="inline-flex items-center gap-1.5"><Gauge size={14} strokeWidth={1.5} />{recipe.difficulty}</span>}
-            <span className="inline-flex items-center gap-1.5"><Utensils size={14} strokeWidth={1.5} />{recipe.category}</span>
+            {recipe.difficulty && (
+              <span className="inline-flex items-center gap-1.5">
+                <Gauge size={14} strokeWidth={1.5} />
+                {recipe.difficulty}
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1.5">
+              <Utensils size={14} strokeWidth={1.5} />
+              {recipe.category}
+            </span>
           </div>
-          {recipe.description && <p className="text-cream/70 text-sm leading-relaxed">{recipe.description}</p>}
+          {recipe.description && (
+            <p className="text-cream/70 text-sm leading-relaxed">{recipe.description}</p>
+          )}
           {recipe.ingredients && recipe.ingredients.length > 0 && (
             <div>
               <h3 className="text-sm font-medium text-cream/80 mb-3">Ingredientes</h3>
               <ul className="space-y-1.5">
                 {recipe.ingredients.map((ing, i) => (
                   <li key={i} className="flex items-start gap-3 text-sm text-cream/80">
-                    <span className="mt-1 h-1.5 w-1.5 rounded-full bg-blush/60 flex-shrink-0" />{ing}
+                    <span className="mt-1 h-1.5 w-1.5 rounded-full bg-blush/60 flex-shrink-0" />
+                    {ing}
                   </li>
                 ))}
               </ul>
@@ -150,18 +217,36 @@ function FeaturedModal({ recipe, onClose, onSave, saving, saved }: {
             <div>
               <h3 className="text-sm font-medium text-cream/80 mb-3">Modo de preparo</h3>
               <div className="text-sm text-cream/80 leading-relaxed space-y-2">
-                {recipe.instructions.split("\n").map((line, i) => <p key={i}>{line}</p>)}
+                {recipe.instructions.split("\n").map((line, i) => (
+                  <p key={i}>{line}</p>
+                ))}
               </div>
             </div>
           )}
-          <button onClick={() => onSave(recipe)} disabled={saving || saved}
-            className={`w-full py-3 rounded-full text-sm font-medium transition ${saved ? "bg-green-500/20 text-green-400 border border-green-500/30 cursor-default" : "bg-blush text-charcoal hover:bg-blush-deep disabled:opacity-60"}`}>
-            {saved ? "Salva em minhas receitas" : saving ? "Salvando…" : "Salvar em minhas receitas"}
+          <button
+            onClick={() => onSave(recipe)}
+            disabled={saving || saved}
+            className={`w-full py-3 rounded-full text-sm font-medium transition ${saved ? "bg-green-500/20 text-green-400 border border-green-500/30 cursor-default" : "bg-blush text-charcoal hover:bg-blush-deep disabled:opacity-60"}`}
+          >
+            {saved
+              ? "Salva em minhas receitas"
+              : saving
+                ? "Salvando…"
+                : "Salvar em minhas receitas"}
           </button>
-          <Link to="/receitas" onClick={onClose} className="block w-full py-3 rounded-full border border-border text-cream/80 text-sm font-medium text-center hover:border-blush/40 hover:text-cream transition">
+          <Link
+            to="/receitas"
+            onClick={onClose}
+            className="block w-full py-3 rounded-full border border-border text-cream/80 text-sm font-medium text-center hover:border-blush/40 hover:text-cream transition"
+          >
             Ver mais receitas
           </Link>
-          <RecipePhotoCredit imageUrl={recipe.image_url} photographer={recipe.image_photographer} photographerUrl={recipe.image_photographer_url} className="text-center" />
+          <RecipePhotoCredit
+            imageUrl={recipe.image_url}
+            photographer={recipe.image_photographer}
+            photographerUrl={recipe.image_photographer_url}
+            className="text-center"
+          />
         </div>
       </div>
     </div>
@@ -189,10 +274,17 @@ function LandingPage() {
     setSavingFeaturedId(recipe.id);
     try {
       const { error } = await supabase.from("user_recipes").insert({
-        user_id: session.user.id, title: recipe.title, description: recipe.description,
-        category: recipe.category, time_minutes: recipe.time_minutes, difficulty: recipe.difficulty,
-        diet: recipe.diet, ingredients: recipe.ingredients, instructions: recipe.instructions,
-        calories_per_serving: recipe.nutrition?.calories ?? null, is_favorite: false,
+        user_id: session.user.id,
+        title: recipe.title,
+        description: recipe.description,
+        category: recipe.category,
+        time_minutes: recipe.time_minutes,
+        difficulty: recipe.difficulty,
+        diet: recipe.diet,
+        ingredients: recipe.ingredients,
+        instructions: recipe.instructions,
+        calories_per_serving: recipe.nutrition?.calories ?? null,
+        is_favorite: false,
         image_url: recipe.image_url ?? null,
         image_photographer: recipe.image_photographer ?? null,
         image_photographer_url: recipe.image_photographer_url ?? null,
@@ -215,11 +307,21 @@ function LandingPage() {
 
   // Conta itens reais da despensa
   useEffect(() => {
-    if (!session) { setPantryCount(null); setRecipeCount(null); return; }
+    if (!session) {
+      setPantryCount(null);
+      setRecipeCount(null);
+      return;
+    }
     void (async () => {
       const [{ count: pantry }, { count: recipes }] = await Promise.all([
-        supabase.from("pantry_items").select("*", { count: "exact", head: true }).eq("user_id", session.user.id),
-        supabase.from("user_recipes").select("*", { count: "exact", head: true }).eq("user_id", session.user.id),
+        supabase
+          .from("pantry_items")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", session.user.id),
+        supabase
+          .from("user_recipes")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", session.user.id),
       ]);
       setPantryCount(pantry ?? 0);
       setRecipeCount(recipes ?? 0);
@@ -286,7 +388,10 @@ function LandingPage() {
 
   return (
     <div className="min-h-screen bg-charcoal text-cream overflow-x-hidden">
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Inter:wght@300;400;500;600&display=swap" />
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Inter:wght@300;400;500;600&display=swap"
+      />
 
       {/* HERO */}
       <section className="relative">
@@ -302,13 +407,20 @@ function LandingPage() {
               <em className="font-display italic text-blush">você já tem</em> em casa.
             </h1>
             <p className="text-lg text-cream/70 max-w-xl leading-relaxed">
-              O receitahub usa inteligência artificial para transformar a sua despensa em receitas reais, prontas em minutos. Sem listas de mercado, sem desperdício.
+              O receitahub usa inteligência artificial para transformar a sua despensa em receitas
+              reais, prontas em minutos. Sem listas de mercado, sem desperdício.
             </p>
             <div className="flex flex-wrap items-center gap-4 pt-2">
-              <Link to="/receitas" className="inline-flex items-center gap-2 bg-blush text-charcoal px-7 py-4 rounded-full font-medium hover:bg-blush-deep transition">
+              <Link
+                to="/receitas"
+                className="inline-flex items-center gap-2 bg-blush text-charcoal px-7 py-4 rounded-full font-medium hover:bg-blush-deep transition"
+              >
                 Ver receitas de hoje
               </Link>
-              <Link to="/minha-despensa" className="inline-flex items-center gap-2 px-7 py-4 rounded-full border border-border text-cream/80 hover:border-blush/40 hover:text-cream transition">
+              <Link
+                to="/minha-despensa"
+                className="inline-flex items-center gap-2 px-7 py-4 rounded-full border border-border text-cream/80 hover:border-blush/40 hover:text-cream transition"
+              >
                 Cadastrar despensa
               </Link>
             </div>
@@ -332,7 +444,11 @@ function LandingPage() {
 
           <div className="lg:col-span-6 relative">
             <div className="relative aspect-[4/3] rounded-3xl overflow-hidden border border-border">
-              <img src={heroImg} alt="Ingredientes frescos sobre tábua de ardósia" className="w-full h-full object-cover" />
+              <img
+                src={heroImg}
+                alt="Ingredientes frescos sobre tábua de ardósia"
+                className="w-full h-full object-cover"
+              />
               <div className="absolute inset-0 bg-gradient-to-tr from-charcoal/40 via-transparent to-transparent" />
             </div>
 
@@ -345,7 +461,10 @@ function LandingPage() {
                 </div>
                 <div className="font-display text-lg text-cream leading-tight">
                   Você tem <span className="text-blush">{pantryCount} itens</span> na despensa
-                  {recipeCount !== null && recipeCount > 0 && ` e ${recipeCount} receita${recipeCount !== 1 ? "s" : ""} salva${recipeCount !== 1 ? "s" : ""}`}.
+                  {recipeCount !== null &&
+                    recipeCount > 0 &&
+                    ` e ${recipeCount} receita${recipeCount !== 1 ? "s" : ""} salva${recipeCount !== 1 ? "s" : ""}`}
+                  .
                 </div>
               </div>
             )}
@@ -371,19 +490,30 @@ function LandingPage() {
         <div className="max-w-7xl mx-auto px-6 lg:px-10 py-24">
           <div className="max-w-2xl mb-16">
             <h2 className="text-4xl md:text-5xl text-cream leading-tight">
-              Da despensa ao prato em <em className="font-display italic text-blush">três passos</em>.
+              Da despensa ao prato em{" "}
+              <em className="font-display italic text-blush">três passos</em>.
             </h2>
           </div>
           <div className="grid lg:grid-cols-12 gap-12 items-center">
             <div className="lg:col-span-5 relative">
               <div className="relative aspect-[3/4] rounded-3xl overflow-hidden border border-border">
-                <img src={stepImg} alt="Despensa organizada com potes de vidro" loading="lazy" className="w-full h-full object-cover" />
+                <img
+                  src={stepImg}
+                  alt="Despensa organizada com potes de vidro"
+                  loading="lazy"
+                  className="w-full h-full object-cover"
+                />
               </div>
             </div>
             <ol className="lg:col-span-7 space-y-2">
               {steps.map((s) => (
-                <li key={s.n} className="group grid grid-cols-[auto_1fr] gap-6 items-start py-8 border-b border-border last:border-b-0">
-                  <span className="font-display italic text-5xl text-blush/70 group-hover:text-blush transition">{s.n}</span>
+                <li
+                  key={s.n}
+                  className="group grid grid-cols-[auto_1fr] gap-6 items-start py-8 border-b border-border last:border-b-0"
+                >
+                  <span className="font-display italic text-5xl text-blush/70 group-hover:text-blush transition">
+                    {s.n}
+                  </span>
                   <div>
                     <h3 className="text-2xl text-cream mb-2">{s.title}</h3>
                     <p className="text-cream/65 leading-relaxed max-w-lg">{s.text}</p>
@@ -412,7 +542,10 @@ function LandingPage() {
             >
               {loadingFeatured ? "Gerando…" : "↻ Gerar novas"}
             </button>
-            <Link to="/receitas" className="inline-flex items-center gap-2 text-cream/80 hover:text-blush transition text-sm border-b border-border hover:border-blush pb-1">
+            <Link
+              to="/receitas"
+              className="inline-flex items-center gap-2 text-cream/80 hover:text-blush transition text-sm border-b border-border hover:border-blush pb-1"
+            >
               Ver todas as receitas
             </Link>
           </div>
@@ -437,21 +570,34 @@ function LandingPage() {
               const lead = i === 0;
               const isSaved = savedFeaturedIds.has(r.id);
               return (
-                <div key={r.id} className={`group relative flex h-full w-full flex-col ${lead ? "sm:col-span-2" : ""}`}>
+                <div
+                  key={r.id}
+                  className={`group relative flex h-full w-full flex-col ${lead ? "sm:col-span-2" : ""}`}
+                >
                   <button
                     onClick={() => setSelectedFeatured(r)}
                     className="flex h-full w-full flex-col text-left"
                   >
                     <RecipeCover
-                      title={r.title} category={r.category} ingredients={r.ingredients}
-                      imageUrl={r.image_url} variant="solo"
+                      title={r.title}
+                      category={r.category}
+                      ingredients={r.ingredients}
+                      imageUrl={r.image_url}
+                      variant="solo"
                       className={`${lead ? "aspect-[16/10]" : "aspect-[4/5]"} rounded-2xl mb-4 border border-border group-hover:border-blush/40 transition`}
                     >
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
                       <div className="absolute bottom-4 left-4 right-4">
                         {r.diet && r.diet.length > 0 && (
                           <div className="flex flex-wrap gap-1.5 mb-2">
-                            {r.diet.slice(0, 2).map((d) => <span key={d} className="text-[9px] uppercase tracking-wider bg-blush/20 text-blush px-2 py-0.5 rounded-full">{d}</span>)}
+                            {r.diet.slice(0, 2).map((d) => (
+                              <span
+                                key={d}
+                                className="text-[9px] uppercase tracking-wider bg-blush/20 text-blush px-2 py-0.5 rounded-full"
+                              >
+                                {d}
+                              </span>
+                            ))}
                           </div>
                         )}
                       </div>
@@ -465,23 +611,59 @@ function LandingPage() {
                         </span>
                       ) : null}
                     </div>
-                    <h3 className={`font-display text-cream group-hover:text-blush transition leading-tight line-clamp-2 ${lead ? "text-3xl md:text-4xl" : "text-2xl"}`}>{r.title}</h3>
-                    {r.description && <p className="text-sm text-cream/60 mt-1 line-clamp-2">{r.description}</p>}
+                    <h3
+                      className={`font-display text-cream group-hover:text-blush transition leading-tight line-clamp-2 ${lead ? "text-3xl md:text-4xl" : "text-2xl"}`}
+                    >
+                      {r.title}
+                    </h3>
+                    {r.description && (
+                      <p className="text-sm text-cream/60 mt-1 line-clamp-2">{r.description}</p>
+                    )}
                   </button>
 
                   {/* Salvar rápido, sem precisar abrir o modal — mesmo padrão do card de /receitas */}
                   <button
-                    onClick={(e) => { e.stopPropagation(); void handleSaveFeatured(r); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handleSaveFeatured(r);
+                    }}
                     disabled={savingFeaturedId === r.id || isSaved}
                     title={isSaved ? "Salva!" : "Salvar receita"}
                     className={`absolute top-3 right-3 h-9 w-9 flex items-center justify-center rounded-full border transition-all ${
-                      isSaved ? "bg-green-500/20 border-green-500/40 text-green-400" : "bg-charcoal/80 backdrop-blur-sm border-border/60 text-cream/70 hover:bg-blush hover:border-blush hover:text-charcoal"
+                      isSaved
+                        ? "bg-green-500/20 border-green-500/40 text-green-400"
+                        : "bg-charcoal/80 backdrop-blur-sm border-border/60 text-cream/70 hover:bg-blush hover:border-blush hover:text-charcoal"
                     }`}
                   >
-                    {isSaved
-                      ? <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-                      : <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z" /></svg>
-                    }
+                    {isSaved ? (
+                      <svg
+                        className="h-4 w-4"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M4.5 12.75l6 6 9-13.5"
+                        />
+                      </svg>
+                    ) : (
+                      <svg
+                        className="h-4 w-4"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z"
+                        />
+                      </svg>
+                    )}
                   </button>
                 </div>
               );
@@ -498,20 +680,26 @@ function LandingPage() {
               O que tem na sua <em className="font-display italic text-blush">despensa</em> hoje?
             </h2>
             <p className="mt-6 text-lg text-cream/70 max-w-xl mx-auto">
-              Em menos de 3 minutos a IA descobre tudo que você pode cozinhar — sem precisar ir ao mercado.
+              Em menos de 3 minutos a IA descobre tudo que você pode cozinhar — sem precisar ir ao
+              mercado.
             </p>
             <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-              <Link to="/minha-despensa" className="inline-flex items-center gap-2 bg-blush text-charcoal px-8 py-4 rounded-full font-medium hover:bg-blush-deep transition">
+              <Link
+                to="/minha-despensa"
+                className="inline-flex items-center gap-2 bg-blush text-charcoal px-8 py-4 rounded-full font-medium hover:bg-blush-deep transition"
+              >
                 Cadastrar minha despensa
               </Link>
-              <Link to="/receitas" className="inline-flex items-center gap-2 px-8 py-4 rounded-full border border-border text-cream/80 hover:border-blush/40 hover:text-cream transition">
+              <Link
+                to="/receitas"
+                className="inline-flex items-center gap-2 px-8 py-4 rounded-full border border-border text-cream/80 hover:border-blush/40 hover:text-cream transition"
+              >
                 Explorar receitas primeiro
               </Link>
             </div>
           </div>
         </div>
       </section>
-
 
       {selectedFeatured && (
         <FeaturedModal

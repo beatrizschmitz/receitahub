@@ -49,10 +49,10 @@
   --radius: 0.75rem;
 
   /* Brand */
-  --blush: oklch(0.84 0.05 15);          /* #e8c1c5 */
+  --blush: oklch(0.84 0.05 15); /* #e8c1c5 */
   --blush-soft: oklch(0.88 0.04 15);
   --blush-deep: oklch(0.72 0.08 15);
-  --charcoal: oklch(0.27 0 0);            /* #2e2e2e */
+  --charcoal: oklch(0.27 0 0); /* #2e2e2e */
   --charcoal-light: oklch(0.32 0 0);
   --cream: oklch(0.97 0.01 60);
 
@@ -94,7 +94,7 @@
   /* Brand — o rosa clareado do escuro não teria contraste sobre fundo claro,
      então vira um terracota da mesma família de matiz. */
   --blush: oklch(0.55 0.13 25);
-  --blush-soft: oklch(0.63 0.10 25);
+  --blush-soft: oklch(0.63 0.1 25);
   --blush-deep: oklch(0.45 0.14 25);
   --charcoal: oklch(0.98 0.008 60);
   --charcoal-light: oklch(0.95 0.012 60);
@@ -112,10 +112,10 @@
   --secondary: oklch(0.92 0.012 60);
   --secondary-foreground: oklch(0.28 0.01 60);
   --muted: oklch(0.95 0.012 60);
-  --muted-foreground: oklch(0.50 0.01 60);
+  --muted-foreground: oklch(0.5 0.01 60);
   --accent: oklch(0.55 0.13 25);
   --accent-foreground: oklch(0.99 0.005 60);
-  --destructive: oklch(0.52 0.20 27);
+  --destructive: oklch(0.52 0.2 27);
   --destructive-foreground: oklch(0.99 0.005 60);
   --border: oklch(0 0 0 / 12%);
   --input: oklch(0 0 0 / 12%);
@@ -124,18 +124,27 @@
   color-scheme: light;
 }
 
-:root { color-scheme: dark; }
+:root {
+  color-scheme: dark;
+}
 
 @layer base {
-  * { border-color: var(--color-border); }
-  html { scroll-behavior: smooth; }
+  * {
+    border-color: var(--color-border);
+  }
+  html {
+    scroll-behavior: smooth;
+  }
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
-  h1, h2, h3, h4 {
+  h1,
+  h2,
+  h3,
+  h4 {
     font-family: var(--font-display);
     font-weight: 400;
     letter-spacing: -0.02em;
@@ -181,7 +190,9 @@ input[type="range"].portion-slider::-webkit-slider-thumb {
   border: 2px solid var(--color-charcoal);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
   cursor: pointer;
-  transition: transform 120ms ease, box-shadow 120ms ease;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease;
 }
 
 input[type="range"].portion-slider::-moz-range-track {
@@ -205,7 +216,9 @@ input[type="range"].portion-slider::-moz-range-thumb {
   border: 2px solid var(--color-charcoal);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
   cursor: pointer;
-  transition: transform 120ms ease, box-shadow 120ms ease;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease;
 }
 
 input[type="range"].portion-slider::-webkit-slider-thumb:hover,
@@ -216,4 +229,58 @@ input[type="range"].portion-slider::-moz-range-thumb:hover {
 input[type="range"].portion-slider:active::-webkit-slider-thumb,
 input[type="range"].portion-slider:active::-moz-range-thumb {
   transform: scale(0.96);
+}
+
+/* ---- Acessibilidade: contraste mínimo dos textos secundários -----------------
+   Medido (WCAG AA = 4,5:1): no tema claro, text-cream/50 dava 3,0:1 e /60 dava
+   4,0:1; no escuro, abaixo de /55 também reprovava. Em vez de editar centenas de
+   classes, estas regras (sem @layer, então vencem as utilitárias) elevam a
+   opacidade efetiva de cada degrau mantendo a ordem de hierarquia entre eles.
+   Valores conferidos nos dois temas, sobre o fundo e sobre os cartões. */
+:root:not([data-theme="light"]) .text-cream\/35,
+:root:not([data-theme="light"]) .text-cream\/40,
+:root:not([data-theme="light"]) .text-cream\/45 {
+  color: color-mix(in oklab, var(--cream) 57%, transparent);
+}
+:root:not([data-theme="light"]) .text-cream\/50 {
+  color: color-mix(in oklab, var(--cream) 60%, transparent);
+}
+:root:not([data-theme="light"]) .text-cream\/55 {
+  color: color-mix(in oklab, var(--cream) 62%, transparent);
+}
+:root:not([data-theme="light"]) .text-cream\/60 {
+  color: color-mix(in oklab, var(--cream) 65%, transparent);
+}
+
+[data-theme="light"] .text-cream\/35,
+[data-theme="light"] .text-cream\/40 {
+  color: color-mix(in oklab, var(--cream) 68%, transparent);
+}
+[data-theme="light"] .text-cream\/45 {
+  color: color-mix(in oklab, var(--cream) 70%, transparent);
+}
+[data-theme="light"] .text-cream\/50 {
+  color: color-mix(in oklab, var(--cream) 72%, transparent);
+}
+[data-theme="light"] .text-cream\/55 {
+  color: color-mix(in oklab, var(--cream) 74%, transparent);
+}
+[data-theme="light"] .text-cream\/60 {
+  color: color-mix(in oklab, var(--cream) 76%, transparent);
+}
+[data-theme="light"] .text-cream\/65 {
+  color: color-mix(in oklab, var(--cream) 78%, transparent);
+}
+[data-theme="light"] .text-cream\/70 {
+  color: color-mix(in oklab, var(--cream) 80%, transparent);
+}
+
+/* Texto de apoio (placeholder) também precisa ser legível */
+:root:not([data-theme="light"]) .placeholder\:text-cream\/40::placeholder,
+:root:not([data-theme="light"]) .placeholder\:text-cream\/45::placeholder {
+  color: color-mix(in oklab, var(--cream) 57%, transparent);
+}
+[data-theme="light"] .placeholder\:text-cream\/40::placeholder,
+[data-theme="light"] .placeholder\:text-cream\/45::placeholder {
+  color: color-mix(in oklab, var(--cream) 68%, transparent);
 }

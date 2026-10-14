@@ -9,79 +9,26 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as ReceitasRouteImport } from './routes/receitas'
-import { Route as PlanosRouteImport } from './routes/planos'
-import { Route as PerfilRouteImport } from './routes/perfil'
-import { Route as PagamentoRouteImport } from './routes/pagamento'
-import { Route as MinhasReceitasRouteImport } from './routes/minhas-receitas'
-import { Route as MinhaDespensaRouteImport } from './routes/minha-despensa'
-import { Route as MinhaAssinaturaRouteImport } from './routes/minha-assinatura'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as ListaComprasRouteImport } from './routes/lista-compras'
-import { Route as FotoRouteImport } from './routes/foto'
-import { Route as DietaRouteImport } from './routes/dieta'
-import { Route as CadastroRouteImport } from './routes/cadastro'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CadastroRouteImport } from './routes/cadastro'
+import { Route as DietaRouteImport } from './routes/dieta'
+import { Route as FotoRouteImport } from './routes/foto'
+import { Route as ListaComprasRouteImport } from './routes/lista-compras'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as MinhaAssinaturaRouteImport } from './routes/minha-assinatura'
+import { Route as MinhaDespensaRouteImport } from './routes/minha-despensa'
+import { Route as MinhasReceitasRouteImport } from './routes/minhas-receitas'
+import { Route as PagamentoRouteImport } from './routes/pagamento'
+import { Route as PerfilRouteImport } from './routes/perfil'
+import { Route as PlanosRouteImport } from './routes/planos'
+import { Route as PrivacidadeRouteImport } from './routes/privacidade'
+import { Route as ReceitasRouteImport } from './routes/receitas'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as TermosRouteImport } from './routes/termos'
 
-const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
-  id: '/sitemap.xml',
-  path: '/sitemap.xml',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ReceitasRoute = ReceitasRouteImport.update({
-  id: '/receitas',
-  path: '/receitas',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PlanosRoute = PlanosRouteImport.update({
-  id: '/planos',
-  path: '/planos',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PerfilRoute = PerfilRouteImport.update({
-  id: '/perfil',
-  path: '/perfil',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PagamentoRoute = PagamentoRouteImport.update({
-  id: '/pagamento',
-  path: '/pagamento',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MinhasReceitasRoute = MinhasReceitasRouteImport.update({
-  id: '/minhas-receitas',
-  path: '/minhas-receitas',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MinhaDespensaRoute = MinhaDespensaRouteImport.update({
-  id: '/minha-despensa',
-  path: '/minha-despensa',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MinhaAssinaturaRoute = MinhaAssinaturaRouteImport.update({
-  id: '/minha-assinatura',
-  path: '/minha-assinatura',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ListaComprasRoute = ListaComprasRouteImport.update({
-  id: '/lista-compras',
-  path: '/lista-compras',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FotoRoute = FotoRouteImport.update({
-  id: '/foto',
-  path: '/foto',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DietaRoute = DietaRouteImport.update({
-  id: '/dieta',
-  path: '/dieta',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CadastroRoute = CadastroRouteImport.update({
@@ -89,9 +36,74 @@ const CadastroRoute = CadastroRouteImport.update({
   path: '/cadastro',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const DietaRoute = DietaRouteImport.update({
+  id: '/dieta',
+  path: '/dieta',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FotoRoute = FotoRouteImport.update({
+  id: '/foto',
+  path: '/foto',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ListaComprasRoute = ListaComprasRouteImport.update({
+  id: '/lista-compras',
+  path: '/lista-compras',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MinhaAssinaturaRoute = MinhaAssinaturaRouteImport.update({
+  id: '/minha-assinatura',
+  path: '/minha-assinatura',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MinhaDespensaRoute = MinhaDespensaRouteImport.update({
+  id: '/minha-despensa',
+  path: '/minha-despensa',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MinhasReceitasRoute = MinhasReceitasRouteImport.update({
+  id: '/minhas-receitas',
+  path: '/minhas-receitas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PagamentoRoute = PagamentoRouteImport.update({
+  id: '/pagamento',
+  path: '/pagamento',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PerfilRoute = PerfilRouteImport.update({
+  id: '/perfil',
+  path: '/perfil',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlanosRoute = PlanosRouteImport.update({
+  id: '/planos',
+  path: '/planos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacidadeRoute = PrivacidadeRouteImport.update({
+  id: '/privacidade',
+  path: '/privacidade',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReceitasRoute = ReceitasRouteImport.update({
+  id: '/receitas',
+  path: '/receitas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermosRoute = TermosRouteImport.update({
+  id: '/termos',
+  path: '/termos',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -108,8 +120,10 @@ export interface FileRoutesByFullPath {
   '/pagamento': typeof PagamentoRoute
   '/perfil': typeof PerfilRoute
   '/planos': typeof PlanosRoute
+  '/privacidade': typeof PrivacidadeRoute
   '/receitas': typeof ReceitasRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/termos': typeof TermosRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -124,8 +138,10 @@ export interface FileRoutesByTo {
   '/pagamento': typeof PagamentoRoute
   '/perfil': typeof PerfilRoute
   '/planos': typeof PlanosRoute
+  '/privacidade': typeof PrivacidadeRoute
   '/receitas': typeof ReceitasRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/termos': typeof TermosRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -141,8 +157,10 @@ export interface FileRoutesById {
   '/pagamento': typeof PagamentoRoute
   '/perfil': typeof PerfilRoute
   '/planos': typeof PlanosRoute
+  '/privacidade': typeof PrivacidadeRoute
   '/receitas': typeof ReceitasRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/termos': typeof TermosRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -159,8 +177,10 @@ export interface FileRouteTypes {
     | '/pagamento'
     | '/perfil'
     | '/planos'
+    | '/privacidade'
     | '/receitas'
     | '/sitemap.xml'
+    | '/termos'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -175,8 +195,10 @@ export interface FileRouteTypes {
     | '/pagamento'
     | '/perfil'
     | '/planos'
+    | '/privacidade'
     | '/receitas'
     | '/sitemap.xml'
+    | '/termos'
   id:
     | '__root__'
     | '/'
@@ -191,8 +213,10 @@ export interface FileRouteTypes {
     | '/pagamento'
     | '/perfil'
     | '/planos'
+    | '/privacidade'
     | '/receitas'
     | '/sitemap.xml'
+    | '/termos'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -208,94 +232,19 @@ export interface RootRouteChildren {
   PagamentoRoute: typeof PagamentoRoute
   PerfilRoute: typeof PerfilRoute
   PlanosRoute: typeof PlanosRoute
+  PrivacidadeRoute: typeof PrivacidadeRoute
   ReceitasRoute: typeof ReceitasRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  TermosRoute: typeof TermosRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/sitemap.xml': {
-      id: '/sitemap.xml'
-      path: '/sitemap.xml'
-      fullPath: '/sitemap.xml'
-      preLoaderRoute: typeof SitemapDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/receitas': {
-      id: '/receitas'
-      path: '/receitas'
-      fullPath: '/receitas'
-      preLoaderRoute: typeof ReceitasRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/planos': {
-      id: '/planos'
-      path: '/planos'
-      fullPath: '/planos'
-      preLoaderRoute: typeof PlanosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/perfil': {
-      id: '/perfil'
-      path: '/perfil'
-      fullPath: '/perfil'
-      preLoaderRoute: typeof PerfilRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/pagamento': {
-      id: '/pagamento'
-      path: '/pagamento'
-      fullPath: '/pagamento'
-      preLoaderRoute: typeof PagamentoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/minhas-receitas': {
-      id: '/minhas-receitas'
-      path: '/minhas-receitas'
-      fullPath: '/minhas-receitas'
-      preLoaderRoute: typeof MinhasReceitasRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/minha-despensa': {
-      id: '/minha-despensa'
-      path: '/minha-despensa'
-      fullPath: '/minha-despensa'
-      preLoaderRoute: typeof MinhaDespensaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/minha-assinatura': {
-      id: '/minha-assinatura'
-      path: '/minha-assinatura'
-      fullPath: '/minha-assinatura'
-      preLoaderRoute: typeof MinhaAssinaturaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/lista-compras': {
-      id: '/lista-compras'
-      path: '/lista-compras'
-      fullPath: '/lista-compras'
-      preLoaderRoute: typeof ListaComprasRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/foto': {
-      id: '/foto'
-      path: '/foto'
-      fullPath: '/foto'
-      preLoaderRoute: typeof FotoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dieta': {
-      id: '/dieta'
-      path: '/dieta'
-      fullPath: '/dieta'
-      preLoaderRoute: typeof DietaRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cadastro': {
@@ -305,11 +254,102 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CadastroRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/dieta': {
+      id: '/dieta'
+      path: '/dieta'
+      fullPath: '/dieta'
+      preLoaderRoute: typeof DietaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/foto': {
+      id: '/foto'
+      path: '/foto'
+      fullPath: '/foto'
+      preLoaderRoute: typeof FotoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lista-compras': {
+      id: '/lista-compras'
+      path: '/lista-compras'
+      fullPath: '/lista-compras'
+      preLoaderRoute: typeof ListaComprasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/minha-assinatura': {
+      id: '/minha-assinatura'
+      path: '/minha-assinatura'
+      fullPath: '/minha-assinatura'
+      preLoaderRoute: typeof MinhaAssinaturaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/minha-despensa': {
+      id: '/minha-despensa'
+      path: '/minha-despensa'
+      fullPath: '/minha-despensa'
+      preLoaderRoute: typeof MinhaDespensaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/minhas-receitas': {
+      id: '/minhas-receitas'
+      path: '/minhas-receitas'
+      fullPath: '/minhas-receitas'
+      preLoaderRoute: typeof MinhasReceitasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pagamento': {
+      id: '/pagamento'
+      path: '/pagamento'
+      fullPath: '/pagamento'
+      preLoaderRoute: typeof PagamentoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/perfil': {
+      id: '/perfil'
+      path: '/perfil'
+      fullPath: '/perfil'
+      preLoaderRoute: typeof PerfilRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/planos': {
+      id: '/planos'
+      path: '/planos'
+      fullPath: '/planos'
+      preLoaderRoute: typeof PlanosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacidade': {
+      id: '/privacidade'
+      path: '/privacidade'
+      fullPath: '/privacidade'
+      preLoaderRoute: typeof PrivacidadeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/receitas': {
+      id: '/receitas'
+      path: '/receitas'
+      fullPath: '/receitas'
+      preLoaderRoute: typeof ReceitasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/termos': {
+      id: '/termos'
+      path: '/termos'
+      fullPath: '/termos'
+      preLoaderRoute: typeof TermosRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -328,8 +368,10 @@ const rootRouteChildren: RootRouteChildren = {
   PagamentoRoute: PagamentoRoute,
   PerfilRoute: PerfilRoute,
   PlanosRoute: PlanosRoute,
+  PrivacidadeRoute: PrivacidadeRoute,
   ReceitasRoute: ReceitasRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  TermosRoute: TermosRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

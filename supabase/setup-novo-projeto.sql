@@ -312,28 +312,30 @@ DROP POLICY IF EXISTS "Users view own subscription" ON public.subscriptions;
 CREATE POLICY "Users view own subscription"
   ON public.subscriptions FOR SELECT TO authenticated USING (auth.uid() = user_id);
 
+-- O usuário só lê a própria linha e só cria uma linha 'free'. Mudar de plano é
+-- feito no servidor (service role): ver supabase/migrations/20261014120000_lock_subscriptions.sql
 DROP POLICY IF EXISTS "Users create own subscription" ON public.subscriptions;
-CREATE POLICY "Users create own subscription"
-  ON public.subscriptions FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
-
 DROP POLICY IF EXISTS "Users update own subscription" ON public.subscriptions;
-CREATE POLICY "Users update own subscription"
-  ON public.subscriptions FOR UPDATE TO authenticated
-  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users create own free subscription" ON public.subscriptions;
+CREATE POLICY "Users create own free subscription"
+  ON public.subscriptions FOR INSERT TO authenticated
+  WITH CHECK (
+    auth.uid() = user_id
+    AND plan_tier = 'free'
+    AND status = 'active'
+    AND current_period_end IS NULL
+    AND payment_provider_id IS NULL
+  );
 
 -- ---- chat_usage -----------------------------------------------------------
 DROP POLICY IF EXISTS "Users view own chat usage" ON public.chat_usage;
 CREATE POLICY "Users view own chat usage"
   ON public.chat_usage FOR SELECT TO authenticated USING (auth.uid() = user_id);
 
+-- Só leitura para o usuário; o contador sobe pela função increment_chat_usage()
+-- (SECURITY DEFINER), então ninguém consegue zerar a própria cota.
 DROP POLICY IF EXISTS "Users create own chat usage" ON public.chat_usage;
-CREATE POLICY "Users create own chat usage"
-  ON public.chat_usage FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
-
 DROP POLICY IF EXISTS "Users update own chat usage" ON public.chat_usage;
-CREATE POLICY "Users update own chat usage"
-  ON public.chat_usage FOR UPDATE TO authenticated
-  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 -- ---- diet_plans -----------------------------------------------------------
 DROP POLICY IF EXISTS "Users view own diet plans" ON public.diet_plans;
@@ -455,7 +457,7 @@ CREATE TRIGGER on_auth_user_created
 CREATE OR REPLACE FUNCTION public.increment_chat_usage()
 RETURNS integer
 LANGUAGE plpgsql
-SECURITY INVOKER
+SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE

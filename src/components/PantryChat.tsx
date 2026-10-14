@@ -629,7 +629,8 @@ export function PantryChat() {
         else if (resp.status === 402) toast.error("Créditos de IA esgotados.");
         else if (resp.status === 503)
           toast.error(
-            payload?.error ?? "O chef está temporariamente sobrecarregado. Tente novamente em alguns instantes.",
+            payload?.error ??
+              "O chef está temporariamente sobrecarregado. Tente novamente em alguns instantes.",
           );
         else toast.error("Erro ao falar com o chef.");
         setLoading(false);
@@ -709,7 +710,9 @@ export function PantryChat() {
         if (accumulated) {
           // Já veio parte da resposta — mantém o que chegou e só avisa que
           // parou no meio, em vez de apagar o que o chef já tinha dito.
-          toast.error("A resposta do chef parou no meio. Pode perguntar de novo se quiser o resto.");
+          toast.error(
+            "A resposta do chef parou no meio. Pode perguntar de novo se quiser o resto.",
+          );
         } else {
           // Nada chegou: tira o balão vazio "..." e avisa.
           setMessages((prev) => prev.slice(0, -1));

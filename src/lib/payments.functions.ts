@@ -1,20 +1,27 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const paymentSchema = z.object({
   planTier: z.enum(["basico", "premium"]),
   fullName: z.string().trim().min(3).max(120),
-  cpf: z.string().transform((v) => v.replace(/\D/g, "")).refine((v) => v.length === 11, {
-    message: "CPF inválido",
-  }),
+  cpf: z
+    .string()
+    .transform((v) => v.replace(/\D/g, ""))
+    .refine((v) => v.length === 11, {
+      message: "CPF inválido",
+    }),
   email: z.string().trim().email().max(255),
   phone: z
     .string()
     .transform((v) => v.replace(/\D/g, ""))
     .refine((v) => v.length >= 10 && v.length <= 11, { message: "Telefone inválido" }),
   // dados sensíveis: usados apenas em memória para chamar o gateway, nunca persistidos
-  cardNumber: z.string().transform((v) => v.replace(/\D/g, "")).refine((v) => v.length >= 13 && v.length <= 16),
+  cardNumber: z
+    .string()
+    .transform((v) => v.replace(/\D/g, ""))
+    .refine((v) => v.length >= 13 && v.length <= 16),
   cardHolder: z.string().trim().min(3).max(120),
   cardExpiry: z.string().regex(/^\d{2}\/\d{2}$/, "Validade inválida"),
   cardCvv: z.string().regex(/^\d{3,4}$/, "CVV inválido"),
@@ -74,7 +81,12 @@ async function chargeGateway(input: PaymentInput): Promise<PaymentResult> {
       },
       body: JSON.stringify({
         amount_plan: input.planTier,
-        customer: { name: input.fullName, document: input.cpf, email: input.email, phone: input.phone },
+        customer: {
+          name: input.fullName,
+          document: input.cpf,
+          email: input.email,
+          phone: input.phone,
+        },
         card: {
           number: input.cardNumber,
           holder: input.cardHolder,
@@ -118,12 +130,14 @@ async function chargeGateway(input: PaymentInput): Promise<PaymentResult> {
 
 export const payForPlan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => paymentSchema.parse(data))
+  .validator((data: unknown) => paymentSchema.parse(data))
   .handler(async ({ data, context }): Promise<PaymentResult> => {
     const result = await chargeGateway(data);
     if (!result.approved) return result;
 
-    const { error } = await context.supabase.from("subscriptions").upsert(
+    // Service role: o navegador não pode mais escrever em subscriptions (a ativação
+    // do plano só acontece aqui, depois de o gateway aprovar a cobrança).
+    const { error } = await supabaseAdmin.from("subscriptions").upsert(
       {
         user_id: context.userId,
         plan_tier: result.planTier,

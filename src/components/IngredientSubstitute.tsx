@@ -1,10 +1,6 @@
 import { useState } from "react";
 import { Loader2, Sparkles, Check } from "lucide-react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 
 type Substitute = { name: string; note: string; inPantry: boolean };
@@ -33,10 +29,9 @@ export function IngredientSubstitute({
     setLoading(true);
     setError(null);
     try {
-      const { data, error: fnError } = await supabase.functions.invoke(
-        "ingredient-substitutes",
-        { body: { ingredient, pantry } }
-      );
+      const { data, error: fnError } = await supabase.functions.invoke("ingredient-substitutes", {
+        body: { ingredient, pantry },
+      });
       if (fnError) throw fnError;
       if (data?.error) throw new Error(data.error);
       const list: Substitute[] = data?.substitutes ?? [];
@@ -65,15 +60,10 @@ export function IngredientSubstitute({
           Substituir
         </button>
       </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        className="w-72 bg-charcoal-light border-border text-cream p-4"
-      >
+      <PopoverContent align="start" className="w-72 bg-charcoal-light border-border text-cream p-4">
         <div className="flex items-center gap-2 mb-3">
           <Sparkles className="h-3.5 w-3.5 text-blush" />
-          <p className="text-sm text-blush">
-            substitutos para {ingredient}
-          </p>
+          <p className="text-sm text-blush">substitutos para {ingredient}</p>
         </div>
 
         {loading && (

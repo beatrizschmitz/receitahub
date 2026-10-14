@@ -63,11 +63,7 @@ function ProfilePage() {
       setLoading(true);
       const [{ data: profile }, { count: pCount }, { count: rCount }, { count: fCount }] =
         await Promise.all([
-          supabase
-            .from("profiles")
-            .select("display_name")
-            .eq("id", session.user.id)
-            .maybeSingle(),
+          supabase.from("profiles").select("display_name").eq("id", session.user.id).maybeSingle(),
           supabase
             .from("pantry_items")
             .select("*", { count: "exact", head: true })

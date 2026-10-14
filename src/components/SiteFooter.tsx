@@ -1,3 +1,5 @@
+import { Link } from "@tanstack/react-router";
+
 export function SiteFooter() {
   return (
     <footer className="border-t border-border">
@@ -6,8 +8,21 @@ export function SiteFooter() {
           <div className="font-display italic text-blush text-lg font-mono">receitahub</div>
           <div>© {new Date().getFullYear()} receitahub. cozinhe com inteligência.</div>
         </div>
+        <nav
+          aria-label="Informações legais"
+          className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-cream/55"
+        >
+          <Link to="/privacidade" className="hover:text-blush transition">
+            Política de Privacidade
+          </Link>
+          <Link to="/termos" className="hover:text-blush transition">
+            Termos de Uso
+          </Link>
+        </nav>
         <p className="text-xs text-cream/35 leading-relaxed">
-          Projeto Integrador III — Centro Universitário de Brasília (CEUB) · Orientação: Prof. Lucas Rodrigues da Silva · Equipe: Beatriz Schmitz, Gabrielle Gonçalves Gutierres, Luísa de Moura Zimmer
+          Projeto Integrador III — Centro Universitário de Brasília (CEUB) · Orientação: Prof. Lucas
+          Rodrigues da Silva · Equipe: Beatriz Schmitz, Gabrielle Gonçalves Gutierres, Luísa de
+          Moura Zimmer
         </p>
       </div>
     </footer>

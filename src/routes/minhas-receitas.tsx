@@ -1,5 +1,17 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { BookOpen, Check, Clock, Download, FileText, Flame, Gauge, Star, Utensils, Wallet } from "lucide-react";
+import {
+  BookOpen,
+  Check,
+  Clock,
+  Download,
+  FileText,
+  Flame,
+  Gauge,
+  Star,
+  Undo2,
+  Utensils,
+  Wallet,
+} from "lucide-react";
 import { RecipeCover, RecipePhotoCredit } from "@/components/RecipeCover";
 import { PortionSlider } from "@/components/PortionSlider";
 import { useEffect, useRef, useState } from "react";
@@ -12,35 +24,69 @@ export const Route = createFileRoute("/minhas-receitas")({
   head: () => ({
     meta: [
       { title: "Minhas receitas — receitahub" },
-      { name: "description", content: "Suas receitas favoritas, salvas e organizadas em um só lugar." },
+      {
+        name: "description",
+        content: "Suas receitas favoritas, salvas e organizadas em um só lugar.",
+      },
     ],
   }),
 });
 
 type UserRecipe = {
-  id: string; title: string; image_url: string | null; category: string | null;
-  image_photographer: string | null; image_photographer_url: string | null;
-  time_minutes: number | null; difficulty: string | null; diet: string[] | null;
-  description: string | null; is_favorite: boolean;
-  ingredients: string[] | null; instructions: string | null;
-  calories_per_serving: number | null; rating: number | null;
-  notes: string | null; times_cooked: number;
-  cost_home_brl: number | null; cost_delivery_brl: number | null;
+  id: string;
+  title: string;
+  image_url: string | null;
+  category: string | null;
+  image_photographer: string | null;
+  image_photographer_url: string | null;
+  time_minutes: number | null;
+  difficulty: string | null;
+  diet: string[] | null;
+  description: string | null;
+  is_favorite: boolean;
+  ingredients: string[] | null;
+  instructions: string | null;
+  calories_per_serving: number | null;
+  rating: number | null;
+  notes: string | null;
+  times_cooked: number;
+  cost_home_brl: number | null;
+  cost_delivery_brl: number | null;
 };
 
 type CalorieEntry = {
-  id: string; recipe_id: string | null; recipe_title: string;
-  calories: number; consumed_at: string;
+  id: string;
+  recipe_id: string | null;
+  recipe_title: string;
+  calories: number;
+  consumed_at: string;
 };
 
 // ─── Modal de detalhes da receita salva ──────────────────────────────────────
-function RecipeDetailModal({ recipe, onClose, onDelete, onFavorite, onRate, onSaveNotes, onAteIt, justAte }: {
-  recipe: UserRecipe; onClose: () => void;
-  onDelete: (id: string) => void; onFavorite: (id: string, v: boolean) => void;
+function RecipeDetailModal({
+  recipe,
+  onClose,
+  onDelete,
+  onFavorite,
+  onRate,
+  onSaveNotes,
+  onAteIt,
+  onUndoAte,
+  justAte,
+  hasEatenToday,
+}: {
+  recipe: UserRecipe;
+  onClose: () => void;
+  onDelete: (id: string) => void;
+  onFavorite: (id: string, v: boolean) => void;
   onRate: (id: string, rating: number) => void;
   onSaveNotes: (id: string, notes: string) => void;
   onAteIt: (r: UserRecipe) => void;
+  /** Remove o registro de hoje (calorias e contagem de vezes feita) */
+  onUndoAte: (r: UserRecipe) => void;
   justAte: boolean;
+  /** Já existe um "Comi isso" desta receita registrado hoje */
+  hasEatenToday: boolean;
 }) {
   const [servings, setServings] = useState(4);
   const [notesDraft, setNotesDraft] = useState(recipe.notes ?? "");
@@ -71,39 +117,93 @@ function RecipeDetailModal({ recipe, onClose, onDelete, onFavorite, onRate, onSa
       onClick={onClose}
     >
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-      <div className="relative z-10 bg-charcoal border border-border rounded-t-3xl md:rounded-3xl w-full md:max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="relative z-10 bg-charcoal border border-border rounded-t-3xl md:rounded-3xl w-full md:max-w-2xl max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="relative rounded-t-3xl overflow-hidden">
-          <RecipeCover title={recipe.title} category={recipe.category} ingredients={recipe.ingredients} imageUrl={recipe.image_url} className="h-56" variant="modal" />
+          <RecipeCover
+            title={recipe.title}
+            category={recipe.category}
+            ingredients={recipe.ingredients}
+            imageUrl={recipe.image_url}
+            className="h-56"
+            variant="modal"
+          />
           {/* Sempre escuro, nos dois temas: a função aqui não é seguir a paleta e sim
               garantir que o texto leia por cima de uma foto qualquer. */}
           <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/85 via-black/40 to-transparent" />
-          <button onClick={onClose} className="absolute top-4 right-4 h-8 w-8 flex items-center justify-center rounded-full bg-charcoal/80 text-cream hover:bg-charcoal transition text-lg">×</button>
-          <button onClick={() => onFavorite(recipe.id, !recipe.is_favorite)}
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 h-8 w-8 flex items-center justify-center rounded-full bg-charcoal/80 text-cream hover:bg-charcoal transition text-lg"
+          >
+            ×
+          </button>
+          <button
+            onClick={() => onFavorite(recipe.id, !recipe.is_favorite)}
             className={`absolute top-4 left-4 h-8 w-8 flex items-center justify-center rounded-full transition ${recipe.is_favorite ? "bg-blush text-charcoal" : "bg-charcoal/80 text-cream/60 hover:text-blush"}`}
-            title={recipe.is_favorite ? "Remover dos favoritos" : "Favoritar"}>
-            <Star className="h-4 w-4" strokeWidth={1.5} fill={recipe.is_favorite ? "currentColor" : "none"} />
+            title={recipe.is_favorite ? "Remover dos favoritos" : "Favoritar"}
+          >
+            <Star
+              className="h-4 w-4"
+              strokeWidth={1.5}
+              fill={recipe.is_favorite ? "currentColor" : "none"}
+            />
           </button>
           <div className="absolute bottom-4 left-6 right-6">
             <div className="flex flex-wrap gap-2 mb-2">
-              {recipe.diet?.map((d) => <span key={d} className="text-[10px] uppercase tracking-wider bg-blush/20 text-blush px-2 py-0.5 rounded-full">{d}</span>)}
+              {recipe.diet?.map((d) => (
+                <span
+                  key={d}
+                  className="text-[10px] uppercase tracking-wider bg-blush/20 text-blush px-2 py-0.5 rounded-full"
+                >
+                  {d}
+                </span>
+              ))}
             </div>
-            <h2 id="saved-recipe-title" className="font-display text-3xl text-cream leading-tight drop-shadow-lg">{recipe.title}</h2>
+            <h2
+              id="saved-recipe-title"
+              className="font-display text-3xl text-cream leading-tight drop-shadow-lg"
+            >
+              {recipe.title}
+            </h2>
           </div>
         </div>
         <div className="p-6 space-y-6">
           <div className="flex gap-4 text-sm text-cream/60 flex-wrap">
             {recipe.time_minutes && <span>⏱ {recipe.time_minutes} min</span>}
-            {recipe.difficulty && <span className="inline-flex items-center gap-1.5"><Gauge size={14} strokeWidth={1.5} />{recipe.difficulty}</span>}
-            {recipe.category && <span className="inline-flex items-center gap-1.5"><Utensils size={14} strokeWidth={1.5} />{recipe.category}</span>}
-            {recipe.calories_per_serving && <span className="text-blush"><Flame size={14} strokeWidth={1.5} className="inline mr-1" />≈ {recipe.calories_per_serving} kcal/porção</span>}
-            {recipe.cost_home_brl && recipe.cost_delivery_brl && (
-              <span className="text-emerald-400">
-                <Wallet size={14} strokeWidth={1.5} className="inline mr-1" />R$ {Number(recipe.cost_home_brl).toFixed(2)} em casa vs R$ {Number(recipe.cost_delivery_brl).toFixed(2)} delivery
+            {recipe.difficulty && (
+              <span className="inline-flex items-center gap-1.5">
+                <Gauge size={14} strokeWidth={1.5} />
+                {recipe.difficulty}
               </span>
             )}
-            {(recipe.times_cooked ?? 0) > 0 && <span className="text-emerald-400">feita {recipe.times_cooked}×</span>}
+            {recipe.category && (
+              <span className="inline-flex items-center gap-1.5">
+                <Utensils size={14} strokeWidth={1.5} />
+                {recipe.category}
+              </span>
+            )}
+            {recipe.calories_per_serving && (
+              <span className="text-blush">
+                <Flame size={14} strokeWidth={1.5} className="inline mr-1" />≈{" "}
+                {recipe.calories_per_serving} kcal/porção
+              </span>
+            )}
+            {recipe.cost_home_brl && recipe.cost_delivery_brl && (
+              <span className="text-emerald-400">
+                <Wallet size={14} strokeWidth={1.5} className="inline mr-1" />
+                R$ {Number(recipe.cost_home_brl).toFixed(2)} em casa vs R${" "}
+                {Number(recipe.cost_delivery_brl).toFixed(2)} delivery
+              </span>
+            )}
+            {(recipe.times_cooked ?? 0) > 0 && (
+              <span className="text-emerald-400">feita {recipe.times_cooked}×</span>
+            )}
           </div>
-          {recipe.description && <p className="text-cream/70 text-sm leading-relaxed">{recipe.description}</p>}
+          {recipe.description && (
+            <p className="text-cream/70 text-sm leading-relaxed">{recipe.description}</p>
+          )}
 
           {/* Avaliação + Comi isso */}
           <div className="bg-charcoal-light border border-border rounded-2xl p-4 space-y-3">
@@ -118,29 +218,44 @@ function RecipeDetailModal({ recipe, onClose, onDelete, onFavorite, onRate, onSa
                       className={`transition ${(recipe.rating ?? 0) >= n ? "text-amber-400" : "text-cream/20 hover:text-amber-400/60"}`}
                       title={`${n} estrela${n > 1 ? "s" : ""}`}
                     >
-                      <Star className="h-6 w-6" strokeWidth={1.25} fill={(recipe.rating ?? 0) >= n ? "currentColor" : "none"} />
+                      <Star
+                        className="h-6 w-6"
+                        strokeWidth={1.25}
+                        fill={(recipe.rating ?? 0) >= n ? "currentColor" : "none"}
+                      />
                     </button>
                   ))}
                 </div>
               </div>
               {recipe.calories_per_serving && (
-                <button
-                  onClick={() => onAteIt(recipe)}
-                  disabled={justAte}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition inline-flex items-center gap-1.5 ${
-                    justAte
-                      ? "bg-green-500/20 text-green-400 border border-green-500/30"
-                      : "bg-blush text-charcoal hover:bg-blush-deep"
-                  }`}
-                >
-                  {justAte ? (
-                    <>
-                      <Check className="h-4 w-4" strokeWidth={2} /> Registrado!
-                    </>
-                  ) : (
-                    `+ Comi isso (${recipe.calories_per_serving} kcal)`
+                <div className="flex items-center gap-2 flex-wrap">
+                  {hasEatenToday && !justAte && (
+                    <button
+                      onClick={() => onUndoAte(recipe)}
+                      title="Apertou sem querer? Remove o registro de hoje"
+                      className="px-3 py-2 rounded-full text-xs border border-red-400/40 text-red-400 hover:bg-red-400/10 transition inline-flex items-center gap-1.5"
+                    >
+                      <Undo2 className="h-3.5 w-3.5" strokeWidth={2} /> Desfazer registro
+                    </button>
                   )}
-                </button>
+                  <button
+                    onClick={() => onAteIt(recipe)}
+                    disabled={justAte}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition inline-flex items-center gap-1.5 ${
+                      justAte
+                        ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                        : "bg-blush text-charcoal hover:bg-blush-deep"
+                    }`}
+                  >
+                    {justAte ? (
+                      <>
+                        <Check className="h-4 w-4" strokeWidth={2} /> Registrado!
+                      </>
+                    ) : (
+                      `+ Comi isso (${recipe.calories_per_serving} kcal)`
+                    )}
+                  </button>
+                </div>
               )}
             </div>
             <div>
@@ -148,7 +263,9 @@ function RecipeDetailModal({ recipe, onClose, onDelete, onFavorite, onRate, onSa
               <textarea
                 value={notesDraft}
                 onChange={(e) => setNotesDraft(e.target.value)}
-                onBlur={() => { if (notesDraft !== (recipe.notes ?? "")) onSaveNotes(recipe.id, notesDraft); }}
+                onBlur={() => {
+                  if (notesDraft !== (recipe.notes ?? "")) onSaveNotes(recipe.id, notesDraft);
+                }}
                 rows={2}
                 placeholder="Ex: ficou ótimo, da próxima usar menos sal..."
                 className="w-full bg-charcoal border border-border rounded-xl p-3 text-cream placeholder:text-cream/45 text-sm focus:outline-none focus:border-blush/50 resize-none"
@@ -183,16 +300,28 @@ function RecipeDetailModal({ recipe, onClose, onDelete, onFavorite, onRate, onSa
             <div>
               <h3 className="text-sm font-medium text-cream/80 mb-3">Modo de preparo</h3>
               <div className="text-sm text-cream/80 leading-relaxed space-y-2">
-                {recipe.instructions.split("\n").map((line, i) => <p key={i}>{line}</p>)}
+                {recipe.instructions.split("\n").map((line, i) => (
+                  <p key={i}>{line}</p>
+                ))}
               </div>
             </div>
           )}
 
-          <button onClick={() => { onDelete(recipe.id); onClose(); }}
-            className="w-full py-3 rounded-full text-sm font-medium border border-red-500/30 text-red-400 hover:bg-red-500/10 transition">
+          <button
+            onClick={() => {
+              onDelete(recipe.id);
+              onClose();
+            }}
+            className="w-full py-3 rounded-full text-sm font-medium border border-red-500/30 text-red-400 hover:bg-red-500/10 transition"
+          >
             Remover receita
           </button>
-          <RecipePhotoCredit imageUrl={recipe.image_url} photographer={recipe.image_photographer} photographerUrl={recipe.image_photographer_url} className="text-center" />
+          <RecipePhotoCredit
+            imageUrl={recipe.image_url}
+            photographer={recipe.image_photographer}
+            photographerUrl={recipe.image_photographer_url}
+            className="text-center"
+          />
         </div>
       </div>
     </div>
@@ -200,7 +329,13 @@ function RecipeDetailModal({ recipe, onClose, onDelete, onFavorite, onRate, onSa
 }
 
 // ─── Modal de importar receita ────────────────────────────────────────────────
-function ImportModal({ onClose, onImport }: { onClose: () => void; onImport: (recipe: Partial<UserRecipe>) => void }) {
+function ImportModal({
+  onClose,
+  onImport,
+}: {
+  onClose: () => void;
+  onImport: (recipe: Partial<UserRecipe>) => void;
+}) {
   const [tab, setTab] = useState<"texto" | "url">("texto");
   const [text, setText] = useState("");
   const [url, setUrl] = useState("");
@@ -210,50 +345,62 @@ function ImportModal({ onClose, onImport }: { onClose: () => void; onImport: (re
 
   async function handleTextImport() {
     if (!text.trim()) return;
-    setLoading(true); setError("");
+    setLoading(true);
+    setError("");
     try {
       const { data, error: fnError } = await supabase.functions.invoke("parse-recipe", {
         body: { text },
       });
-      if (fnError || data?.error) throw new Error(fnError?.message ?? data?.error ?? "Erro ao processar");
+      if (fnError || data?.error)
+        throw new Error(fnError?.message ?? data?.error ?? "Erro ao processar");
       onImport(data.recipe);
       onClose();
     } catch (e) {
       onImport({ title: "Receita importada", instructions: text, category: "prato principal" });
       onClose();
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleUrlImport() {
     if (!url.trim()) return;
-    setLoading(true); setError("");
+    setLoading(true);
+    setError("");
     try {
       const { data, error: fnError } = await supabase.functions.invoke("parse-recipe", {
         body: { url },
       });
-      if (fnError || data?.error) throw new Error(fnError?.message ?? data?.error ?? "Erro ao processar");
+      if (fnError || data?.error)
+        throw new Error(fnError?.message ?? data?.error ?? "Erro ao processar");
       onImport(data.recipe);
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Não foi possível importar dessa URL.");
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleFileImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setLoading(true); setError("");
+    setLoading(true);
+    setError("");
     try {
       const content = await file.text();
       const { data, error: fnError } = await supabase.functions.invoke("parse-recipe", {
         body: { text: content },
       });
-      if (fnError || data?.error) throw new Error(fnError?.message ?? data?.error ?? "Erro ao processar");
+      if (fnError || data?.error)
+        throw new Error(fnError?.message ?? data?.error ?? "Erro ao processar");
       onImport(data.recipe);
       onClose();
     } catch {
       setError("Não foi possível ler o arquivo.");
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -265,33 +412,62 @@ function ImportModal({ onClose, onImport }: { onClose: () => void; onImport: (re
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={onClose}>
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-      <div className="relative z-10 bg-charcoal border border-border rounded-3xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="relative z-10 bg-charcoal border border-border rounded-3xl w-full max-w-lg"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="font-display text-2xl text-cream">Importar receita</h2>
-            <button onClick={onClose} className="h-8 w-8 flex items-center justify-center rounded-full text-cream/60 hover:text-cream transition text-lg">×</button>
+            <button
+              onClick={onClose}
+              className="h-8 w-8 flex items-center justify-center rounded-full text-cream/60 hover:text-cream transition text-lg"
+            >
+              ×
+            </button>
           </div>
 
           <div className="flex gap-2 mb-6">
             {(["texto", "url"] as const).map((t) => (
-              <button key={t} onClick={() => setTab(t)}
-                className={`px-4 py-2 rounded-full text-sm first-letter:uppercase transition border ${tab === t ? "bg-blush text-charcoal border-blush" : "border-border text-cream/60 hover:text-cream"}`}>{t === "texto" ? "Colar texto / arquivo" : "URL do site"}</button>
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`px-4 py-2 rounded-full text-sm first-letter:uppercase transition border ${tab === t ? "bg-blush text-charcoal border-blush" : "border-border text-cream/60 hover:text-cream"}`}
+              >
+                {t === "texto" ? "Colar texto / arquivo" : "URL do site"}
+              </button>
             ))}
           </div>
 
           {tab === "texto" && (
             <div className="space-y-4">
-              <textarea value={text} onChange={(e) => setText(e.target.value)} rows={8}
+              <textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                rows={8}
                 placeholder="Cole aqui o texto da receita (ingredientes, modo de preparo...)"
-                className="w-full bg-charcoal-light border border-border rounded-2xl p-4 text-cream placeholder:text-cream/40 text-sm focus:outline-none focus:border-blush/50 resize-none" />
+                className="w-full bg-charcoal-light border border-border rounded-2xl p-4 text-cream placeholder:text-cream/40 text-sm focus:outline-none focus:border-blush/50 resize-none"
+              />
               <div className="flex items-center gap-3">
-                <button onClick={() => fileRef.current?.click()} disabled={loading}
-                  className="px-4 py-2 rounded-full border border-border text-cream/70 text-sm hover:border-blush/40 transition">
+                <button
+                  onClick={() => fileRef.current?.click()}
+                  disabled={loading}
+                  className="px-4 py-2 rounded-full border border-border text-cream/70 text-sm hover:border-blush/40 transition"
+                >
                   Importar .txt
                 </button>
-                <input ref={fileRef} type="file" accept=".txt,.pdf" className="hidden" onChange={handleFileImport} />
-                <button onClick={handleTextImport} disabled={loading || !text.trim()}
-                  className="ml-auto px-6 py-2 rounded-full bg-blush text-charcoal text-sm font-medium hover:bg-blush-deep transition disabled:opacity-50">
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".txt,.pdf"
+                  className="hidden"
+                  onChange={handleFileImport}
+                />
+                <button
+                  onClick={handleTextImport}
+                  disabled={loading || !text.trim()}
+                  className="ml-auto px-6 py-2 rounded-full bg-blush text-charcoal text-sm font-medium hover:bg-blush-deep transition disabled:opacity-50"
+                >
                   {loading ? "Importando…" : "Importar"}
                 </button>
               </div>
@@ -300,13 +476,24 @@ function ImportModal({ onClose, onImport }: { onClose: () => void; onImport: (re
 
           {tab === "url" && (
             <div className="space-y-4">
-              <p className="text-sm text-cream/60">Cole a URL de um site de receitas (TudoGostoso, Panelinha, blogs, etc).</p>
-              <input value={url} onChange={(e) => setUrl(e.target.value)} type="url"
+              <p className="text-sm text-cream/60">
+                Cole a URL de um site de receitas (TudoGostoso, Panelinha, blogs, etc).
+              </p>
+              <input
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                type="url"
                 placeholder="https://www.tudogostoso.com.br/receita/..."
-                className="w-full bg-charcoal-light border border-border rounded-full px-5 py-3 text-cream placeholder:text-cream/40 text-sm focus:outline-none focus:border-blush/50" />
-              <p className="text-xs text-cream/40">A IA vai extrair título, ingredientes e modo de preparo automaticamente.</p>
-              <button onClick={handleUrlImport} disabled={loading || !url.trim()}
-                className="w-full py-3 rounded-full bg-blush text-charcoal text-sm font-medium hover:bg-blush-deep transition disabled:opacity-50">
+                className="w-full bg-charcoal-light border border-border rounded-full px-5 py-3 text-cream placeholder:text-cream/40 text-sm focus:outline-none focus:border-blush/50"
+              />
+              <p className="text-xs text-cream/40">
+                A IA vai extrair título, ingredientes e modo de preparo automaticamente.
+              </p>
+              <button
+                onClick={handleUrlImport}
+                disabled={loading || !url.trim()}
+                className="w-full py-3 rounded-full bg-blush text-charcoal text-sm font-medium hover:bg-blush-deep transition disabled:opacity-50"
+              >
                 {loading ? "Importando…" : "Importar da URL"}
               </button>
             </div>
@@ -327,7 +514,9 @@ function MyRecipesPage() {
   const [loading, setLoading] = useState(true);
   const [selectedRecipe, setSelectedRecipe] = useState<UserRecipe | null>(null);
   const [showImport, setShowImport] = useState(false);
-  const [filter, setFilter] = useState<"todas" | "favoritas" | "melhor avaliadas" | "mais feitas">("todas");
+  const [filter, setFilter] = useState<"todas" | "favoritas" | "melhor avaliadas" | "mais feitas">(
+    "todas",
+  );
   const [calorieEntries, setCalorieEntries] = useState<CalorieEntry[]>([]);
   // "Comi isso" não dava nenhum sinal de que funcionou — parecia que o clique
   // não tinha feito nada. Guarda o id de quem acabou de ser registrado pra
@@ -349,18 +538,23 @@ function MyRecipesPage() {
       // contas na listagem. Isso não substitui corrigir a policy no Supabase,
       // mas já garante que esta tela só mostra o que é do usuário logado.
       const [recipesRes, caloriesRes] = await Promise.all([
-        supabase.from("user_recipes")
-          .select("id, title, image_url, image_photographer, image_photographer_url, category, time_minutes, difficulty, diet, description, is_favorite, ingredients, instructions, calories_per_serving, rating, notes, times_cooked, cost_home_brl, cost_delivery_brl")
+        supabase
+          .from("user_recipes")
+          .select(
+            "id, title, image_url, image_photographer, image_photographer_url, category, time_minutes, difficulty, diet, description, is_favorite, ingredients, instructions, calories_per_serving, rating, notes, times_cooked, cost_home_brl, cost_delivery_brl",
+          )
           .eq("user_id", session.user.id)
           .order("created_at", { ascending: false }),
-        supabase.from("calorie_log")
+        supabase
+          .from("calorie_log")
           .select("id, recipe_id, recipe_title, calories, consumed_at")
           .eq("user_id", session.user.id)
           .eq("consumed_at", today)
           .order("created_at", { ascending: false }),
       ]);
       if (!recipesRes.error && recipesRes.data) setRecipes(recipesRes.data as UserRecipe[]);
-      if (!caloriesRes.error && caloriesRes.data) setCalorieEntries(caloriesRes.data as CalorieEntry[]);
+      if (!caloriesRes.error && caloriesRes.data)
+        setCalorieEntries(caloriesRes.data as CalorieEntry[]);
       setLoading(false);
 
       // Receitas salvas antes das fotos (ou importadas) não têm image_url.
@@ -401,19 +595,20 @@ function MyRecipesPage() {
 
   async function handleFavorite(id: string, value: boolean) {
     await supabase.from("user_recipes").update({ is_favorite: value }).eq("id", id);
-    setRecipes((prev) => prev.map((r) => r.id === id ? { ...r, is_favorite: value } : r));
-    if (selectedRecipe?.id === id) setSelectedRecipe((prev) => prev ? { ...prev, is_favorite: value } : prev);
+    setRecipes((prev) => prev.map((r) => (r.id === id ? { ...r, is_favorite: value } : r)));
+    if (selectedRecipe?.id === id)
+      setSelectedRecipe((prev) => (prev ? { ...prev, is_favorite: value } : prev));
   }
 
   async function handleRate(id: string, rating: number) {
     await supabase.from("user_recipes").update({ rating }).eq("id", id);
-    setRecipes((prev) => prev.map((r) => r.id === id ? { ...r, rating } : r));
-    if (selectedRecipe?.id === id) setSelectedRecipe((prev) => prev ? { ...prev, rating } : prev);
+    setRecipes((prev) => prev.map((r) => (r.id === id ? { ...r, rating } : r)));
+    if (selectedRecipe?.id === id) setSelectedRecipe((prev) => (prev ? { ...prev, rating } : prev));
   }
 
   async function handleNotes(id: string, notes: string) {
     await supabase.from("user_recipes").update({ notes }).eq("id", id);
-    setRecipes((prev) => prev.map((r) => r.id === id ? { ...r, notes } : r));
+    setRecipes((prev) => prev.map((r) => (r.id === id ? { ...r, notes } : r)));
   }
 
   async function handleAteIt(recipe: UserRecipe, ev?: React.MouseEvent) {
@@ -421,22 +616,37 @@ function MyRecipesPage() {
     ev?.stopPropagation();
     const calories = recipe.calories_per_serving;
     if (!calories) {
-      toast.error("Essa receita ainda não tem calorias estimadas. Salve uma nova ou edite manualmente.");
+      toast.error(
+        "Essa receita ainda não tem calorias estimadas. Salve uma nova ou edite manualmente.",
+      );
       return;
     }
-    const { data, error } = await supabase.from("calorie_log").insert({
-      user_id: session.user.id,
-      recipe_id: recipe.id,
-      recipe_title: recipe.title,
-      calories,
-    }).select().single();
+    const { data, error } = await supabase
+      .from("calorie_log")
+      .insert({
+        user_id: session.user.id,
+        recipe_id: recipe.id,
+        recipe_title: recipe.title,
+        calories,
+      })
+      .select()
+      .single();
     if (!error && data) {
       setCalorieEntries((prev) => [data as CalorieEntry, ...prev]);
       // incrementa times_cooked
       const next = (recipe.times_cooked ?? 0) + 1;
       await supabase.from("user_recipes").update({ times_cooked: next }).eq("id", recipe.id);
-      setRecipes((prev) => prev.map((r) => r.id === recipe.id ? { ...r, times_cooked: next } : r));
-      toast.success(`+${calories} kcal registradas!`);
+      setRecipes((prev) =>
+        prev.map((r) => (r.id === recipe.id ? { ...r, times_cooked: next } : r)),
+      );
+      // Cliques sem querer são comuns: o aviso já traz o desfazer.
+      toast.success(`+${calories} kcal registradas!`, {
+        duration: 8000,
+        action: {
+          label: "Desfazer",
+          onClick: () => void handleRemoveCalorie((data as CalorieEntry).id, data as CalorieEntry),
+        },
+      });
       setJustAteId(recipe.id);
       setTimeout(() => setJustAteId((prev) => (prev === recipe.id ? null : prev)), 1800);
     } else {
@@ -445,36 +655,81 @@ function MyRecipesPage() {
     }
   }
 
-  async function handleRemoveCalorie(id: string) {
-    await supabase.from("calorie_log").delete().eq("id", id);
+  // Remove um registro de "Comi isso". Além das calorias do dia, desconta a
+  // vez em que a receita foi feita — senão "feita N×", "Já preparadas" e a
+  // economia média continuavam contando uma refeição que não aconteceu.
+  // `known` vem do aviso "Desfazer", cujo estado ainda não inclui o registro novo.
+  async function handleRemoveCalorie(id: string, known?: CalorieEntry) {
+    const entry = known ?? calorieEntries.find((e) => e.id === id);
+    const { error } = await supabase.from("calorie_log").delete().eq("id", id);
+    if (error) {
+      console.error(error);
+      toast.error("Não consegui remover o registro. Tente de novo.");
+      return;
+    }
     setCalorieEntries((prev) => prev.filter((e) => e.id !== id));
+    if (entry?.recipe_id) {
+      const recipeId = entry.recipe_id;
+      // Lê o valor atual no banco (o estado local pode estar um passo atrás)
+      const { data: row } = await supabase
+        .from("user_recipes")
+        .select("times_cooked")
+        .eq("id", recipeId)
+        .maybeSingle();
+      const next = Math.max(0, (row?.times_cooked ?? 0) - 1);
+      const { error: updateError } = await supabase
+        .from("user_recipes")
+        .update({ times_cooked: next })
+        .eq("id", recipeId);
+      if (updateError) console.error(updateError);
+      else
+        setRecipes((prev) =>
+          prev.map((r) => (r.id === recipeId ? { ...r, times_cooked: next } : r)),
+        );
+      setSelectedRecipe((prev) =>
+        prev && prev.id === recipeId ? { ...prev, times_cooked: next } : prev,
+      );
+    }
+    toast.success("Registro removido.");
+  }
+
+  // Desfaz o registro de hoje mais recente desta receita.
+  function handleUndoAte(recipe: UserRecipe, ev?: React.MouseEvent) {
+    ev?.stopPropagation();
+    const entry = calorieEntries.find((e) => e.recipe_id === recipe.id);
+    if (entry) void handleRemoveCalorie(entry.id);
   }
 
   async function handleImport(partial: Partial<UserRecipe>) {
     if (!session) return;
-    const { data, error } = await supabase.from("user_recipes").insert({
-      user_id: session.user.id,
-      title: partial.title ?? "Receita importada",
-      description: partial.description ?? null,
-      category: partial.category ?? "prato principal",
-      instructions: partial.instructions ?? null,
-      ingredients: partial.ingredients ?? null,
-      diet: partial.diet ?? [],
-      calories_per_serving: partial.calories_per_serving ?? null,
-      cost_home_brl: partial.cost_home_brl ?? null,
-      cost_delivery_brl: partial.cost_delivery_brl ?? null,
-      time_minutes: partial.time_minutes ?? null,
-      difficulty: partial.difficulty ?? null,
-      is_favorite: false,
-    }).select().single();
+    const { data, error } = await supabase
+      .from("user_recipes")
+      .insert({
+        user_id: session.user.id,
+        title: partial.title ?? "Receita importada",
+        description: partial.description ?? null,
+        category: partial.category ?? "prato principal",
+        instructions: partial.instructions ?? null,
+        ingredients: partial.ingredients ?? null,
+        diet: partial.diet ?? [],
+        calories_per_serving: partial.calories_per_serving ?? null,
+        cost_home_brl: partial.cost_home_brl ?? null,
+        cost_delivery_brl: partial.cost_delivery_brl ?? null,
+        time_minutes: partial.time_minutes ?? null,
+        difficulty: partial.difficulty ?? null,
+        is_favorite: false,
+      })
+      .select()
+      .single();
     if (!error && data) setRecipes((prev) => [data as UserRecipe, ...prev]);
   }
 
-  if (authLoading || !session) return (
-    <div className="min-h-screen bg-charcoal text-cream flex items-center justify-center">
-      <div className="text-cream/50">Carregando...</div>
-    </div>
-  );
+  if (authLoading || !session)
+    return (
+      <div className="min-h-screen bg-charcoal text-cream flex items-center justify-center">
+        <div className="text-cream/50">Carregando...</div>
+      </div>
+    );
 
   const favorites = recipes.filter((r) => r.is_favorite);
   const totalCalories = calorieEntries.reduce((sum, e) => sum + e.calories, 0);
@@ -498,12 +753,21 @@ function MyRecipesPage() {
 
   let displayed = recipes;
   if (filter === "favoritas") displayed = favorites;
-  else if (filter === "melhor avaliadas") displayed = [...recipes].filter((r) => r.rating).sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
-  else if (filter === "mais feitas") displayed = [...recipes].filter((r) => (r.times_cooked ?? 0) > 0).sort((a, b) => (b.times_cooked ?? 0) - (a.times_cooked ?? 0));
+  else if (filter === "melhor avaliadas")
+    displayed = [...recipes]
+      .filter((r) => r.rating)
+      .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+  else if (filter === "mais feitas")
+    displayed = [...recipes]
+      .filter((r) => (r.times_cooked ?? 0) > 0)
+      .sort((a, b) => (b.times_cooked ?? 0) - (a.times_cooked ?? 0));
 
   return (
     <div className="min-h-screen bg-charcoal text-cream">
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Inter:wght@300;400;500;600&display=swap" />
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Inter:wght@300;400;500;600&display=swap"
+      />
 
       <section className="max-w-7xl mx-auto px-6 lg:px-10 pt-20 pb-16">
         <div className="flex items-end justify-between flex-wrap gap-6">
@@ -511,11 +775,15 @@ function MyRecipesPage() {
             <h1 className="text-5xl md:text-6xl text-cream leading-tight">
               Minhas <em className="text-blush font-display italic">receitas</em>
             </h1>
-            <p className="mt-4 text-cream/70 max-w-xl">Tudo que você salvou para preparar depois.</p>
+            <p className="mt-4 text-cream/70 max-w-xl">
+              Tudo que você salvou para preparar depois.
+            </p>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={() => setShowImport(true)}
-              className="px-5 py-3 rounded-full border border-border text-sm hover:border-blush/40 transition">
+            <button
+              onClick={() => setShowImport(true)}
+              className="px-5 py-3 rounded-full border border-border text-sm hover:border-blush/40 transition"
+            >
               Importar receita
             </button>
           </div>
@@ -526,16 +794,31 @@ function MyRecipesPage() {
           <div className="flex items-start justify-between flex-wrap gap-4">
             <div>
               <div className="text-sm text-blush mb-2">Calorias hoje</div>
-              <div className="font-display text-5xl text-cream">{totalCalories.toLocaleString("pt-BR")} <span className="text-2xl text-cream/50">kcal</span></div>
-              <p className="text-xs text-cream/40 mt-2">Estimativas da IA — não substituem rótulo nutricional.</p>
+              <div className="font-display text-5xl text-cream">
+                {totalCalories.toLocaleString("pt-BR")}{" "}
+                <span className="text-2xl text-cream/50">kcal</span>
+              </div>
+              <p className="text-xs text-cream/40 mt-2">
+                Estimativas da IA — não substituem rótulo nutricional.
+              </p>
             </div>
             {calorieEntries.length > 0 && (
               <div className="flex-1 min-w-[240px] max-w-md space-y-1.5">
                 {calorieEntries.map((e) => (
-                  <div key={e.id} className="flex items-center gap-2 text-sm bg-charcoal/40 rounded-full px-3 py-1.5">
+                  <div
+                    key={e.id}
+                    className="flex items-center gap-2 text-sm bg-charcoal/40 rounded-full px-3 py-1.5"
+                  >
                     <span className="text-cream/80 truncate flex-1">{e.recipe_title}</span>
                     <span className="text-blush text-xs">{e.calories} kcal</span>
-                    <button onClick={() => handleRemoveCalorie(e.id)} className="text-cream/40 hover:text-red-400 transition">×</button>
+                    <button
+                      onClick={() => handleRemoveCalorie(e.id)}
+                      aria-label={`Remover ${e.recipe_title} de hoje`}
+                      title="Remover registro"
+                      className="text-cream/40 hover:text-red-400 transition"
+                    >
+                      ×
+                    </button>
                   </div>
                 ))}
               </div>
@@ -545,12 +828,20 @@ function MyRecipesPage() {
 
         {/* Painel Economia */}
         <div className="mt-6 bg-gradient-to-br from-emerald-500/15 to-emerald-500/5 light:from-emerald-50 light:to-emerald-50/50 border border-emerald-500/30 light:border-emerald-600/40 rounded-3xl p-6">
-          <div className="text-sm text-emerald-400 light:text-emerald-800 mb-2">Economia média por refeição</div>
+          <div className="text-sm text-emerald-400 light:text-emerald-800 mb-2">
+            Economia média por refeição
+          </div>
           <div className="font-display text-5xl text-cream">
-            R$ {avgSavePerMeal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            R${" "}
+            {avgSavePerMeal.toLocaleString("pt-BR", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
           </div>
           <p className="text-xs text-cream/40 mt-2">
-            {costedCookedCount === 1 ? "1 refeição registrada" : `${costedCookedCount} refeições registradas`}
+            {costedCookedCount === 1
+              ? "1 refeição registrada"
+              : `${costedCookedCount} refeições registradas`}
           </p>
           {costedCookedCount > 0 && (
             <p className="text-[11px] text-cream/35 mt-4 pt-4 border-t border-emerald-500/10">
@@ -577,8 +868,13 @@ function MyRecipesPage() {
         {/* Filtros */}
         <div className="mt-8 flex gap-2 flex-wrap">
           {(["todas", "favoritas", "melhor avaliadas", "mais feitas"] as const).map((f) => (
-            <button key={f} onClick={() => setFilter(f)}
-              className={`px-4 py-2 rounded-full text-sm first-letter:uppercase transition border ${filter === f ? "bg-blush text-charcoal border-blush" : "border-border text-cream/60 hover:text-cream"}`}>{f}</button>
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-4 py-2 rounded-full text-sm first-letter:uppercase transition border ${filter === f ? "bg-blush text-charcoal border-blush" : "border-border text-cream/60 hover:text-cream"}`}
+            >
+              {f}
+            </button>
           ))}
         </div>
       </section>
@@ -589,13 +885,23 @@ function MyRecipesPage() {
         ) : displayed.length > 0 ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 auto-rows-fr gap-6">
             {displayed.map((r) => (
-              <article key={r.id} onClick={() => setSelectedRecipe(r)}
+              <article
+                key={r.id}
+                onClick={() => setSelectedRecipe(r)}
                 /* Favorita não é só um ícone a mais: a borda em terracota
                    distingue a coleção pessoal das sugestões geradas. */
                 className={`group flex h-full flex-col cursor-pointer bg-charcoal-light rounded-2xl overflow-hidden border transition-all hover:border-blush/40 ${
                   r.is_favorite ? "border-blush/45" : "border-border"
-                }`}>
-                <RecipeCover title={r.title} category={r.category} ingredients={r.ingredients} imageUrl={r.image_url} className="aspect-[4/3]" variant="card" />
+                }`}
+              >
+                <RecipeCover
+                  title={r.title}
+                  category={r.category}
+                  ingredients={r.ingredients}
+                  imageUrl={r.image_url}
+                  className="aspect-[4/3]"
+                  variant="card"
+                />
                 <div className="flex flex-1 flex-col p-5">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="flex-1">
@@ -608,14 +914,25 @@ function MyRecipesPage() {
                           </span>
                         ) : null}
                       </div>
-                      <h3 className="font-display text-2xl text-cream leading-tight mb-2 line-clamp-2 group-hover:text-blush transition">{r.title}</h3>
-                      {r.description && <p className="text-sm text-cream/60 line-clamp-2">{r.description}</p>}
+                      <h3 className="font-display text-2xl text-cream leading-tight mb-2 line-clamp-2 group-hover:text-blush transition">
+                        {r.title}
+                      </h3>
+                      {r.description && (
+                        <p className="text-sm text-cream/60 line-clamp-2">{r.description}</p>
+                      )}
                     </div>
-                    {r.is_favorite && <Star className="h-4 w-4 flex-shrink-0 fill-blush text-blush" strokeWidth={0} />}
+                    {r.is_favorite && (
+                      <Star
+                        className="h-4 w-4 flex-shrink-0 fill-blush text-blush"
+                        strokeWidth={0}
+                      />
+                    )}
                   </div>
                   <div className="flex items-center gap-2 flex-wrap mt-auto pt-3 border-t border-border/50">
                     {r.calories_per_serving && (
-                      <span className="text-[11px] bg-blush/15 text-blush px-2 py-1 rounded-full">≈ {r.calories_per_serving} kcal</span>
+                      <span className="text-[11px] bg-blush/15 text-blush px-2 py-1 rounded-full">
+                        ≈ {r.calories_per_serving} kcal
+                      </span>
                     )}
                     {r.cost_home_brl && (
                       <span className="text-[11px] bg-emerald-500/15 text-emerald-300 px-2 py-1 rounded-full">
@@ -623,23 +940,45 @@ function MyRecipesPage() {
                       </span>
                     )}
                     {r.rating && (
-                      <span className="text-[11px] bg-amber-500/15 text-amber-400 px-2 py-1 rounded-full">{r.rating} <Star size={10} className="inline fill-current" strokeWidth={0} /></span>
+                      <span className="text-[11px] bg-amber-500/15 text-amber-400 px-2 py-1 rounded-full">
+                        {r.rating}{" "}
+                        <Star size={10} className="inline fill-current" strokeWidth={0} />
+                      </span>
                     )}
                     {(r.times_cooked ?? 0) > 0 && (
-                      <span className="text-[11px] bg-emerald-500/15 text-emerald-400 px-2 py-1 rounded-full">{r.times_cooked}×</span>
+                      <span className="text-[11px] bg-emerald-500/15 text-emerald-400 px-2 py-1 rounded-full">
+                        {r.times_cooked}×
+                      </span>
                     )}
+                    {r.calories_per_serving &&
+                      calorieEntries.some((e) => e.recipe_id === r.id) &&
+                      justAteId !== r.id && (
+                        <button
+                          onClick={(ev) => handleUndoAte(r, ev)}
+                          title="Apertou sem querer? Remove o registro de hoje"
+                          className="ml-auto text-[11px] px-3 py-1 rounded-full border border-red-400/40 text-red-400 hover:bg-red-400/10 transition inline-flex items-center gap-1"
+                        >
+                          <Undo2 className="h-3 w-3" strokeWidth={2} /> Desfazer
+                        </button>
+                      )}
                     {r.calories_per_serving && (
                       <button
                         onClick={(ev) => handleAteIt(r, ev)}
                         disabled={justAteId === r.id}
                         title="Registrar consumo de hoje"
-                        className={`ml-auto text-[11px] px-3 py-1 rounded-full border transition inline-flex items-center gap-1 ${
+                        className={`${calorieEntries.some((e) => e.recipe_id === r.id) && justAteId !== r.id ? "" : "ml-auto"} text-[11px] px-3 py-1 rounded-full border transition inline-flex items-center gap-1 ${
                           justAteId === r.id
                             ? "border-green-500/40 bg-green-500/15 text-green-400"
                             : "border-blush/40 text-blush hover:bg-blush hover:text-charcoal"
                         }`}
                       >
-                        {justAteId === r.id ? (<><Check className="h-3 w-3" strokeWidth={2} /> Registrado!</>) : "+ Comi isso"}
+                        {justAteId === r.id ? (
+                          <>
+                            <Check className="h-3 w-3" strokeWidth={2} /> Registrado!
+                          </>
+                        ) : (
+                          "+ Comi isso"
+                        )}
                       </button>
                     )}
                   </div>
@@ -651,10 +990,14 @@ function MyRecipesPage() {
           <div className="text-center py-24 border border-dashed border-border rounded-3xl">
             <BookOpen className="mx-auto mb-4 h-9 w-9 text-cream/25" strokeWidth={1} />
             <h3 className="font-display text-2xl text-cream mb-2">
-              {filter === "favoritas" ? "Nenhuma receita favoritada ainda" : "Sua coleção está vazia"}
+              {filter === "favoritas"
+                ? "Nenhuma receita favoritada ainda"
+                : "Sua coleção está vazia"}
             </h3>
             <p className="text-cream/60">
-              {filter === "favoritas" ? "Abra uma receita salva e clique na estrela para favoritar." : "Salve receitas da página de receitas para encontrá-las aqui."}
+              {filter === "favoritas"
+                ? "Abra uma receita salva e clique na estrela para favoritar."
+                : "Salve receitas da página de receitas para encontrá-las aqui."}
             </p>
           </div>
         )}
@@ -669,7 +1012,9 @@ function MyRecipesPage() {
           onRate={handleRate}
           onSaveNotes={handleNotes}
           onAteIt={(r) => handleAteIt(r)}
+          onUndoAte={(r) => handleUndoAte(r)}
           justAte={justAteId === selectedRecipe.id}
+          hasEatenToday={calorieEntries.some((e) => e.recipe_id === selectedRecipe.id)}
         />
       )}
       {showImport && <ImportModal onClose={() => setShowImport(false)} onImport={handleImport} />}

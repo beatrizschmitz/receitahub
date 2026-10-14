@@ -18,7 +18,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { OPEN_CHAT_PHOTO_EVENT } from "@/components/PantryChat";
-import { GATED_FEATURES, PLAN_ICON, PLAN_ICONS, PLAN_LABEL, planAtLeast, type GatedFeature } from "@/lib/plans";
+import {
+  GATED_FEATURES,
+  PLAN_ICON,
+  PLAN_ICONS,
+  PLAN_LABEL,
+  planAtLeast,
+  type GatedFeature,
+} from "@/lib/plans";
 
 // Navegação principal: a partir de lg (1024px) ocupa o vão entre o logo e o
 // menu, centralizada nele; abaixo disso — tablet e celular — vira a primeira
@@ -101,15 +108,12 @@ export function AppHeader() {
               todos; quem já é Premium vê "Recursos". O plano é checado ao clicar:
               se não liberar, leva para a página de planos. */}
           <DropdownMenu>
-            <DropdownMenuTrigger className="inline-flex items-center gap-1.5 rounded-full border border-blush/40 bg-blush/10 px-4 py-1.5 text-sm text-blush transition hover:bg-blush/20 outline-none">
+            <DropdownMenuTrigger className="inline-flex items-center gap-1.5 rounded-full border border-blush/40 bg-blush/10 px-4 py-1.5 text-sm text-blush light:text-blush-deep transition hover:bg-blush/20 outline-none">
               <Sparkles size={14} strokeWidth={1.5} />
               {tier === "premium" ? "Recursos" : "Premium"}
               <ChevronDown size={13} strokeWidth={1.5} />
             </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="w-72 border-border bg-charcoal text-cream"
-            >
+            <DropdownMenuContent align="end" className="w-72 border-border bg-charcoal text-cream">
               <DropdownMenuItem
                 className="flex cursor-pointer items-start gap-3 py-2.5 focus:bg-blush/10 focus:text-cream"
                 onSelect={() => {

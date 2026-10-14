@@ -1,6 +1,6 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Camera, ChevronDown, Menu, Moon, Salad, Sparkles, Sun } from "lucide-react";
+import { Camera, ChevronDown, LogOut, Menu, Moon, Salad, Sparkles, Sun, User } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/contexts/SubscriptionContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -18,14 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { OPEN_CHAT_PHOTO_EVENT } from "@/components/PantryChat";
-import {
-  GATED_FEATURES,
-  PLAN_ICON,
-  PLAN_ICONS,
-  PLAN_LABEL,
-  planAtLeast,
-  type GatedFeature,
-} from "@/lib/plans";
+import { GATED_FEATURES, PLAN_ICON, PLAN_ICONS, planAtLeast, type GatedFeature } from "@/lib/plans";
 
 // Navegação principal: a partir de lg (1024px) ocupa o vão entre o logo e o
 // menu, centralizada nele; abaixo disso — tablet e celular — vira a primeira
@@ -209,40 +202,31 @@ export function AppHeader() {
                   <div className="h-px bg-border my-5" />
                 </div>
 
-                <p className={sectionLabelClass}>Perfil</p>
+                <p className={sectionLabelClass}>Conta</p>
                 {session ? (
                   <div className="mt-3 flex flex-col">
-                    {/* Plano contratado: atalho para a assinatura (o link "Minha assinatura" logo abaixo é o caminho explícito) */}
+                    {/* O ícone acompanha o plano contratado (gratuito, básico ou premium) */}
                     <Link
                       to="/minha-assinatura"
                       onClick={() => setOpen(false)}
-                      className={`flex w-fit items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition ${
-                        path === "/minha-assinatura"
-                          ? "border-blush text-blush"
-                          : "border-border text-cream/60 hover:border-blush hover:text-blush"
-                      }`}
+                      className={`flex items-center gap-2.5 ${drawerLinkClass("/minha-assinatura")}`}
                     >
-                      <PlanIcon size={13} strokeWidth={1.5} />
-                      Plano {PLAN_LABEL[tier]}
-                    </Link>
-                    <Link
-                      to="/minha-assinatura"
-                      onClick={() => setOpen(false)}
-                      className={`mt-3 ${drawerLinkClass("/minha-assinatura")}`}
-                    >
+                      <PlanIcon size={16} strokeWidth={1.5} />
                       Minha assinatura
                     </Link>
                     <Link
                       to="/perfil"
                       onClick={() => setOpen(false)}
-                      className={`truncate ${drawerLinkClass("/perfil")}`}
+                      className={`flex items-center gap-2.5 ${drawerLinkClass("/perfil")}`}
                     >
-                      {session.user.email}
+                      <User size={16} strokeWidth={1.5} />
+                      Perfil
                     </Link>
                     <button
                       onClick={handleLogout}
-                      className="text-sm py-2 text-left text-cream/70 transition hover:text-blush"
+                      className="flex items-center gap-2.5 text-sm py-2 text-left text-cream/70 transition hover:text-blush"
                     >
+                      <LogOut size={16} strokeWidth={1.5} />
                       Sair
                     </button>
                   </div>

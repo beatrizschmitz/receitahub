@@ -545,27 +545,15 @@ function MyRecipesPage() {
 
         {/* Painel Economia */}
         <div className="mt-6 bg-gradient-to-br from-emerald-500/15 to-emerald-500/5 light:from-emerald-50 light:to-emerald-50/50 border border-emerald-500/30 light:border-emerald-600/40 rounded-3xl p-6">
-          <div className="flex items-start justify-between flex-wrap gap-4">
-            <div>
-              <div className="text-sm text-emerald-400 light:text-emerald-800 mb-2">Economia acumulada cozinhando em casa</div>
-              <div className="font-display text-5xl text-cream">
-                R$ {totalSavings.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </div>
-              <p className="text-xs text-cream/40 mt-2">
-                Vs. pedir delivery, desde que você começou a usar o app (
-                {costedCookedCount === 1 ? "1 refeição registrada" : `${costedCookedCount} refeições registradas`}
-                ).
-              </p>
-            </div>
-            {avgSavePerMeal > 0 && (
-              <div className="min-w-[200px] bg-charcoal/40 rounded-2xl p-4 space-y-2">
-                <div className="text-[11px] text-cream/50">Economia média por refeição</div>
-                <div className="font-display text-3xl text-emerald-300">
-                  R$ {avgSavePerMeal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
-              </div>
-            )}
+          <div className="text-sm text-emerald-400 light:text-emerald-800 mb-2">Economia média por refeição</div>
+          <div className="font-display text-5xl text-cream">
+            R$ {avgSavePerMeal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
+          <p className="text-xs text-cream/40 mt-2">
+            Cozinhando em casa, desde que você começou a usar o app (
+            {costedCookedCount === 1 ? "1 refeição registrada" : `${costedCookedCount} refeições registradas`}
+            ).
+          </p>
           {costedCookedCount > 0 && (
             <p className="text-[11px] text-cream/35 mt-4 pt-4 border-t border-emerald-500/10">
               Preços estimados pela IA com base em pesquisas de refeição no Brasil (Mosaiclab 2023,

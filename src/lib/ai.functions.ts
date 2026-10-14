@@ -3,11 +3,14 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { effectiveTier } from "@/lib/plans";
 import { CATEGORIES, isValidCategory } from "@/lib/pantry-category";
 import { nutritionFromMacros, type RecipeNutrition } from "@/lib/recipe-nutrition";
+import { resolveIngredient, summarizeRecipe, type RawIngredient } from "@/lib/recipe-taco";
+import { promptFoodList } from "@/lib/taco";
+import { DIET_SYSTEM, RECIPE_SYSTEM, dietTacoPrompt, recipeTacoPrompt } from "@/lib/taco-prompts";
+import { buildDay, type RawDay } from "@/lib/diet-taco";
 import {
   GOAL_LABEL,
   calculateTargets,
   detectGoal,
-  kcalFromMacros,
   validateBody,
   type BodyData,
   type NutritionTargets,
@@ -217,75 +220,78 @@ export type DietPlan = {
   days: DietDay[];
   /** Metas calculadas (gasto basal, gasto total, macros) usadas para montar o plano */
   nutrition?: NutritionTargets;
+  /** Os nutrientes vêm da tabela TACO (planos novos) */
+  source?: "taco";
 };
 
 const WEEK_DAYS = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
 
-const num = (v: unknown): number => {
-  const n = typeof v === "number" ? v : Number(v);
-  return Number.isFinite(n) && n > 0 ? n : 0;
+type RawPlan = {
+  title?: unknown;
+  summary?: unknown;
+  tips?: unknown;
+  days?: unknown;
 };
 
 /**
- * Deixa o plano internamente consistente: as calorias de cada refeição saem dos
- * macros (4/4/9), e os totais do dia são a soma das refeições. Assim a IA não
- * consegue "inventar" um total que não bate com o que está no prato.
+ * Transforma a escolha de alimentos da IA em plano: nutrientes da TACO, gramas
+ * ajustadas por refeição para fechar a meta, totais por dia somados pelo código.
+ * Devolve também os pontos que fugiram do esperado (para a segunda tentativa).
  */
-function normalizePlan(plan: DietPlan, t: NutritionTargets): DietPlan {
-  const days = (Array.isArray(plan.days) ? plan.days : []).slice(0, 7).map((d, i) => {
-    const meals = (Array.isArray(d.meals) ? d.meals : []).map((m) => {
-      const p = num(m.protein_g);
-      const c = num(m.carbs_g);
-      const f = num(m.fat_g);
-      const hasMacros = p + c + f > 0;
-      return {
-        ...m,
-        protein_g: hasMacros ? Math.round(p) : null,
-        carbs_g: hasMacros ? Math.round(c) : null,
-        fat_g: hasMacros ? Math.round(f) : null,
-        calories: hasMacros ? kcalFromMacros(p, c, f) : num(m.calories) || null,
-        items: Array.isArray(m.items)
-          ? m.items
-              .filter((it) => it && typeof it.food === "string")
-              .map((it) => ({ food: String(it.food), quantity: String(it.quantity ?? "") }))
-          : [],
-      } satisfies DietMeal;
-    });
-    const sum = (k: "calories" | "protein_g" | "carbs_g" | "fat_g") =>
-      meals.reduce((acc, m) => acc + (m[k] ?? 0), 0);
-    return {
-      day: d.day || WEEK_DAYS[i] || `Dia ${i + 1}`,
-      meals,
-      total_calories: sum("calories"),
-      total_protein_g: sum("protein_g"),
-      total_carbs_g: sum("carbs_g"),
-      total_fat_g: sum("fat_g"),
-    } satisfies DietDay;
-  });
-  return {
-    title: plan.title,
-    summary: plan.summary,
-    tips: Array.isArray(plan.tips) ? plan.tips : [],
-    daily_calories_target: t.kcal,
-    days,
-    nutrition: t,
-  };
-}
+function buildPlanFromTaco(
+  raw: RawPlan,
+  t: NutritionTargets,
+): { plan: DietPlan; issues: string[] } {
+  const rawDays = (Array.isArray(raw.days) ? raw.days : []).slice(0, 7) as RawDay[];
+  const built = rawDays.map((d, i) =>
+    buildDay(
+      d,
+      i,
+      WEEK_DAYS,
+      t.meals.map((m) => ({ meal: m.meal, kcal: m.kcal })),
+      t.kcal,
+      t.proteinG,
+    ),
+  );
+  const issues = built.flatMap((d) => d.issues);
+  if (built.length < 7) issues.push(`o plano tem só ${built.length} dias; precisa ter 7`);
 
-/** Dias cujo total fugiu mais de `tolerance` da meta — voltam para a IA corrigir. */
-function offTargetDays(plan: DietPlan, t: NutritionTargets, tolerance = 0.07): string[] {
-  const out: string[] = [];
-  for (const d of plan.days) {
-    const total = d.total_calories ?? 0;
-    const diff = (total - t.kcal) / t.kcal;
-    if (Math.abs(diff) > tolerance || d.meals.length < 5) {
-      out.push(
-        `${d.day}: ${total} kcal (meta ${t.kcal}; ${d.meals.length} refeições, precisam ser 5)`,
-      );
-    }
-  }
-  if (plan.days.length < 7) out.push(`o plano tem só ${plan.days.length} dias; precisa ter 7`);
-  return out;
+  const round = (n: number) => Math.round(n);
+  const days: DietDay[] = built.map((d) => ({
+    day: d.day,
+    meals: d.meals.map(
+      (m): DietMeal => ({
+        meal: m.meal,
+        name: m.name,
+        description: m.description || undefined,
+        items: m.items.map((i) => ({ food: i.food.name, quantity: `${i.grams} g` })),
+        calories: round(m.nutrients.kcal),
+        protein_g: round(m.nutrients.protein),
+        carbs_g: round(m.nutrients.carbs),
+        fat_g: round(m.nutrients.fat),
+      }),
+    ),
+    total_calories: round(d.totals.kcal),
+    total_protein_g: round(d.totals.protein),
+    total_carbs_g: round(d.totals.carbs),
+    total_fat_g: round(d.totals.fat),
+  }));
+
+  return {
+    plan: {
+      title: typeof raw.title === "string" ? raw.title.slice(0, 120) : "Plano alimentar",
+      summary: typeof raw.summary === "string" ? raw.summary.slice(0, 600) : "",
+      tips: (Array.isArray(raw.tips) ? raw.tips : [])
+        .filter((x): x is string => typeof x === "string")
+        .slice(0, 8)
+        .map((x) => x.slice(0, 240)),
+      daily_calories_target: t.kcal,
+      days,
+      nutrition: t,
+      source: "taco",
+    },
+    issues,
+  };
 }
 
 export const generateDietPlan = createServerFn({ method: "POST" })
@@ -327,61 +333,33 @@ export const generateDietPlan = createServerFn({ method: "POST" })
     const goal = detectGoal(data.objective);
     const t = calculateTargets(data.body, goal);
 
-    const mealLines = t.meals
-      .map(
-        (m) =>
-          `- ${m.meal}: ~${m.kcal} kcal | proteína ${m.proteinG} g | carboidrato ${m.carbsG} g | gordura ${m.fatG} g`,
-      )
-      .join("\n");
+    const basePrompt = dietTacoPrompt({
+      t,
+      objective: data.objective,
+      goalLabel: GOAL_LABEL[goal],
+      colesterol: goal === "colesterol",
+      restrictions: data.restrictions,
+      notes: data.notes,
+      pantry: data.pantry,
+    });
 
-    const colesterolRule =
-      goal === "colesterol"
-        ? "\n6. Foco em reduzir o colesterol: gorduras saturadas baixas, muita fibra solúvel (aveia, frutas, leguminosas), peixes e oleaginosas, sem frituras nem embutidos."
-        : "";
+    const system = DIET_SYSTEM;
 
-    const basePrompt = `Monte um plano alimentar de 7 dias (Segunda a Domingo) para esta pessoa.
-
-PERFIL
-- Sexo: ${t.inputs.sex}, ${t.inputs.age} anos, ${t.inputs.weightKg} kg, ${t.inputs.heightCm} cm (IMC ${t.bmi}, ${t.bmiClass})
-- Objetivo: ${data.objective} (${GOAL_LABEL[goal]})
-- Restrições alimentares: ${data.restrictions.join(", ") || "nenhuma"}
-- Observações (alergias, condições de saúde, rotina): ${data.notes || "nenhuma"}
-- Itens que a pessoa já tem na despensa (priorize): ${data.pantry.join(", ") || "não informado"}
-
-METAS DIÁRIAS JÁ CALCULADAS (siga à risca, em TODOS os 7 dias)
-- Total: ${t.kcal} kcal | proteína ${t.proteinG} g | carboidrato ${t.carbsG} g | gordura ${t.fatG} g | fibras ${t.fiberG} g
-Distribuição por refeição (5 refeições por dia):
-${mealLines}
-
-REGRAS
-1. Cada refeição deve ter a lista de alimentos com a QUANTIDADE EXATA de cada um (gramas, mL ou medida caseira, ex.: "arroz integral cozido — 120 g (4 col. de sopa)").
-2. Informe os macros de cada refeição (protein_g, carbs_g, fat_g) coerentes com os alimentos e quantidades listados. NÃO informe calorias: elas são calculadas a partir dos macros.
-3. A soma dos macros de cada dia tem que ficar dentro de ±5% das metas acima.
-4. Use alimentos comuns e baratos no Brasil, respeite TODAS as restrições e alergias, varie os pratos ao longo da semana e priorize a despensa.
-5. Não faça nenhuma promessa de tratamento nem indique suplementos ou medicamentos.${colesterolRule}
-
-Responda SOMENTE com JSON válido neste formato exato:
-{"title":"","summary":"resumo curto do plano e da lógica das metas","tips":["dica prática"],"days":[{"day":"Segunda","meals":[{"meal":"Café da manhã","name":"nome do prato","description":"modo de preparo curto","items":[{"food":"alimento","quantity":"quantidade"}],"protein_g":0,"carbs_g":0,"fat_g":0}]}]}`;
-
-    const system =
-      "Você é um nutricionista brasileiro que monta cardápios com cálculo preciso de porções e macronutrientes. Responda SEMPRE em português do Brasil e SOMENTE com JSON válido, sem markdown.";
-
-    let plan = normalizePlan(
+    let best = buildPlanFromTaco(
       (await callGateway(
         [
           { role: "system", content: system },
           { role: "user", content: basePrompt },
         ],
         0.6,
-      )) as DietPlan,
+      )) as RawPlan,
       t,
     );
 
-    // Uma segunda chance quando algum dia fugiu da meta
-    const problems = offTargetDays(plan, t);
-    if (problems.length > 0) {
+    // Uma segunda chance quando algo ficou fora do esperado
+    if (best.issues.length > 0) {
       try {
-        const fixed = normalizePlan(
+        const retry = buildPlanFromTaco(
           (await callGateway(
             [
               { role: "system", content: system },
@@ -389,25 +367,28 @@ Responda SOMENTE com JSON válido neste formato exato:
                 role: "user",
                 content: `${basePrompt}
 
-ATENÇÃO: uma versão anterior saiu fora da meta nestes pontos:
-${problems.join("\n")}
-Refaça o plano COMPLETO (7 dias, 5 refeições por dia) ajustando as quantidades e os macros para cada dia fechar em ${t.kcal} kcal (±5%).`,
+ATENÇÃO: uma versão anterior teve estes problemas:
+${best.issues.slice(0, 20).join("\n")}
+Refaça o plano COMPLETO (7 dias, 5 refeições por dia, só alimentos da tabela) corrigindo esses pontos.`,
               },
             ],
             0.4,
-          )) as DietPlan,
+          )) as RawPlan,
           t,
         );
-        if (offTargetDays(fixed, t).length <= problems.length) plan = fixed;
+        if (retry.issues.length <= best.issues.length) best = retry;
       } catch (e) {
         console.error("generateDietPlan retry", e);
       }
     }
 
-    if (plan.days.length === 0) {
+    if (
+      best.plan.days.length === 0 ||
+      best.plan.days.every((d) => d.meals.every((m) => !m.items?.length))
+    ) {
       throw new Error("A IA não conseguiu montar o cardápio. Tente de novo.");
     }
-    return plan;
+    return best.plan;
   });
 
 // Categoria de um ingrediente que o dicionário local da despensa não reconheceu.
@@ -459,10 +440,75 @@ Formato: {"category":"..."}`,
   });
 
 // Informação nutricional por porção de uma receita que ainda não tem (salvas
-// antes, importadas ou vindas do chat). Não exige plano pago. É uma estimativa
-// da IA; as calorias saem dos macros (4/4/9), para os números fecharem entre si.
-// O cache em memória evita estimar duas vezes a mesma receita.
+// antes, importadas ou vindas do chat), ou que só tem a estimativa da IA. Não
+// exige plano pago.
+//
+// 1) Calcula com a TACO: a IA identifica o alimento da tabela e a medida de cada
+//    ingrediente; as gramas e os nutrientes são calculados no código.
+// 2) Se a tabela cobrir pouco da receita, cai na estimativa da IA (macros ->
+//    calorias por 4/4/9), marcada como "ia".
+// O cache em memória evita calcular duas vezes a mesma receita.
 const nutritionCache = new Map<string, RecipeNutrition>();
+
+async function nutritionFromTaco(
+  title: string,
+  ingredients: string[],
+  servings: number,
+): Promise<RecipeNutrition | null> {
+  const result = (await callGateway(
+    [
+      { role: "system", content: RECIPE_SYSTEM },
+      { role: "user", content: recipeTacoPrompt(title, ingredients, servings) },
+    ],
+    0,
+  )) as { items?: RawIngredient[] };
+
+  const items = (Array.isArray(result.items) ? result.items : []).slice(0, ingredients.length);
+  const totals = summarizeRecipe(items.map(resolveIngredient), servings);
+  const n = totals?.nutrition;
+  // calorias fora do plausível por porção indicam erro de leitura da IA
+  if (!n || n.calories < 30 || n.calories > 3000) return null;
+  return n;
+}
+
+async function nutritionFromAi(
+  title: string,
+  ingredients: string[],
+  servings: number,
+  knownCalories: number | null,
+): Promise<RecipeNutrition | null> {
+  const ingredientLines = ingredients.map((i) => `- ${i}`).join("\n");
+  const referenceLine = knownCalories
+    ? `Referência: a receita foi estimada em cerca de ${knownCalories} kcal por porção; mantenha os valores coerentes com isso.`
+    : "";
+  const result = (await callGateway(
+    [
+      {
+        role: "system",
+        content:
+          "Você é um nutricionista brasileiro que calcula a informação nutricional de receitas a partir dos ingredientes e das quantidades. Responda SOMENTE com JSON válido, sem markdown.",
+      },
+      {
+        role: "user",
+        content: `Receita: ${title}
+Rende ${servings} porções.
+Ingredientes:
+${ingredientLines}
+${referenceLine}
+Calcule os valores POR PORÇÃO (some os ingredientes e divida por ${servings}). Informe gramas de proteína, carboidrato e gordura. Não informe calorias.
+Formato: {"protein":0,"carbs":0,"fat":0}`,
+      },
+    ],
+    0.2,
+  )) as { protein?: number; carbs?: number; fat?: number };
+  const nutrition = nutritionFromMacros(
+    Number(result.protein),
+    Number(result.carbs),
+    Number(result.fat),
+  );
+  if (!nutrition || nutrition.calories < 30 || nutrition.calories > 3000) return null;
+  return { ...nutrition, source: "ia" };
+}
 
 export const estimateRecipeNutrition = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -498,43 +544,24 @@ export const estimateRecipeNutrition = createServerFn({ method: "POST" })
     const cached = nutritionCache.get(key);
     if (cached) return { nutrition: cached };
 
-    const ingredientLines = data.ingredients.map((i) => `- ${i}`).join("\n");
-    const referenceLine = data.knownCalories
-      ? `Referência: a receita foi estimada em cerca de ${data.knownCalories} kcal por porção; mantenha os valores coerentes com isso.`
-      : "";
-
+    let nutrition: RecipeNutrition | null = null;
     try {
-      const result = (await callGateway(
-        [
-          {
-            role: "system",
-            content:
-              "Você é um nutricionista brasileiro que calcula a informação nutricional de receitas a partir dos ingredientes e das quantidades. Responda SOMENTE com JSON válido, sem markdown.",
-          },
-          {
-            role: "user",
-            content: `Receita: ${data.title}
-Rende ${data.servings} porções.
-Ingredientes:
-${ingredientLines}
-${referenceLine}
-Calcule os valores POR PORÇÃO (some os ingredientes e divida por ${data.servings}). Informe gramas de proteína, carboidrato e gordura. Não informe calorias.
-Formato: {"protein":0,"carbs":0,"fat":0}`,
-          },
-        ],
-        0.2,
-      )) as { protein?: number; carbs?: number; fat?: number };
-      const nutrition = nutritionFromMacros(
-        Number(result.protein),
-        Number(result.carbs),
-        Number(result.fat),
-      );
-      if (nutrition && nutrition.calories >= 30 && nutrition.calories <= 3000) {
-        nutritionCache.set(key, nutrition);
-        return { nutrition };
-      }
+      nutrition = await nutritionFromTaco(data.title, data.ingredients, data.servings);
     } catch (e) {
-      console.error("estimateRecipeNutrition", e);
+      console.error("estimateRecipeNutrition (TACO)", e);
     }
-    return { nutrition: null };
+    if (!nutrition) {
+      try {
+        nutrition = await nutritionFromAi(
+          data.title,
+          data.ingredients,
+          data.servings,
+          data.knownCalories,
+        );
+      } catch (e) {
+        console.error("estimateRecipeNutrition (IA)", e);
+      }
+    }
+    if (nutrition) nutritionCache.set(key, nutrition);
+    return { nutrition };
   });

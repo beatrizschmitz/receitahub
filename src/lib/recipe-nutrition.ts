@@ -6,6 +6,12 @@ export type RecipeNutrition = {
   protein: number;
   carbs: number;
   fat: number;
+  /** De onde vêm os números: tabela TACO ou estimativa da IA (padrão, para dados antigos) */
+  source?: "taco" | "ia";
+  /** Houve medida caseira convertida em gramas (colher, xícara, unidade...) */
+  approx?: boolean;
+  /** Ingredientes sem correspondente na tabela, deixados de fora da conta */
+  unmatched?: string[];
 };
 
 const toNumber = (v: unknown): number | null => {
@@ -23,12 +29,18 @@ export function parseNutrition(value: unknown): RecipeNutrition | null {
   const fat = toNumber(o.fat);
   if (calories === null || protein === null || carbs === null || fat === null) return null;
   if (calories <= 0) return null;
-  return {
+  const out: RecipeNutrition = {
     calories: Math.round(calories),
     protein: Math.round(protein),
     carbs: Math.round(carbs),
     fat: Math.round(fat),
   };
+  if (o.source === "taco" || o.source === "ia") out.source = o.source;
+  if (typeof o.approx === "boolean") out.approx = o.approx;
+  if (Array.isArray(o.unmatched)) {
+    out.unmatched = o.unmatched.filter((x): x is string => typeof x === "string").slice(0, 20);
+  }
+  return out;
 }
 
 /** Calorias a partir dos macros (4 kcal/g de proteína e carboidrato, 9 kcal/g de gordura). */

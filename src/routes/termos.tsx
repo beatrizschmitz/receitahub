@@ -44,9 +44,16 @@ function TermsPage() {
         <h2 className={h2}>2. Conteúdo gerado por inteligência artificial</h2>
         <ul className="mt-3 list-disc pl-5 space-y-2">
           <li className={li}>
-            Receitas, calorias, custos, substituições e planos alimentares são{" "}
+            Receitas, custos e substituições são{" "}
             <strong className="text-cream">estimativas geradas por IA</strong> e podem conter erros.
             Confira ingredientes, quantidades e validade dos alimentos antes de consumir.
+          </li>
+          <li className={li}>
+            Calorias e nutrientes de receitas e planos alimentares são calculados com a Tabela
+            Brasileira de Composição de Alimentos (TACO, NEPA/UNICAMP, 4ª edição, 2011). A tabela
+            traz valores médios por 100 g, e as medidas caseiras (colher, xícara, unidade) são
+            convertidas em gramas de forma aproximada. Alimentos sem correspondente na tabela ficam
+            de fora do cálculo, e nesses casos a estimativa pode vir da IA.
           </li>
           <li className={li}>
             Se você tem alergia ou intolerância, informe nas restrições e <em>sempre</em> leia o

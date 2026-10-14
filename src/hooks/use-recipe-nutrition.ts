@@ -16,6 +16,11 @@ type Options = {
   canEstimate: boolean;
   /** Calorias já conhecidas, para a estimativa ficar coerente com elas */
   knownCalories?: number | null;
+  /**
+   * Receita com números antigos da IA (sem `source`): recalcula com a TACO. Só vale onde o
+   * resultado é guardado (Minhas receitas), para não gastar IA a cada abertura.
+   */
+  upgradeAi?: boolean;
   /** Chamado quando uma estimativa nova chega (para guardar na receita salva) */
   onEstimated?: (nutrition: RecipeNutrition) => void;
 };
@@ -32,7 +37,10 @@ export function useRecipeNutrition(opts: Options): {
   status: NutritionStatus;
   retry: () => void;
 } {
-  const given = parseNutrition(opts.initial);
+  const parsed = parseNutrition(opts.initial);
+  // Valor antigo da IA, sem fonte registrada: pode ser trocado pelo cálculo com a TACO
+  const upgradable = Boolean(opts.upgradeAi && parsed && parsed.source === undefined);
+  const given = upgradable ? null : parsed;
   const estimate = useServerFn(estimateRecipeNutrition);
   const [estimated, setEstimated] = useState<RecipeNutrition | null>(null);
   const [status, setStatus] = useState<NutritionStatus>("loading");
@@ -93,5 +101,7 @@ export function useRecipeNutrition(opts: Options): {
   }, [cacheKey, opts.canEstimate, hasIngredients, attempt, JSON.stringify(opts.initial)]);
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
-  return { nutrition: given ?? estimated, status: given ? "ready" : status, retry };
+  // Durante a troca da estimativa antiga pela da TACO, segue mostrando a antiga
+  const shown = given ?? estimated ?? (upgradable ? parsed : null);
+  return { nutrition: shown, status: shown ? "ready" : status, retry };
 }

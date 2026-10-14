@@ -109,6 +109,7 @@ function RecipeDetailModal({
     initial: recipe.nutrition,
     canEstimate: Boolean(modalSession),
     knownCalories: recipe.calories_per_serving,
+    upgradeAi: true,
     onEstimated: (n) => onNutrition(recipe, n),
   });
 

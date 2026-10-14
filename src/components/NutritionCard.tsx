@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { NutritionStatus } from "@/hooks/use-recipe-nutrition";
 import type { RecipeNutrition } from "@/lib/recipe-nutrition";
+import { TACO_SOURCE } from "@/lib/taco";
 import { WEIGHT_LIMITS, formatPerKg, useStoredWeight } from "@/lib/weight";
 
 type Props = {
@@ -28,7 +29,9 @@ export function NutritionCard({ nutrition, status, onRetry, ratio = 1 }: Props) 
     <div>
       <h3 className="text-sm font-medium text-cream/80 mb-3">
         Informação nutricional{" "}
-        <span className="text-cream/40 normal-case">(estimativa via IA)</span>
+        <span className="text-cream/40 normal-case">
+          {nutrition?.source === "taco" ? "(calculada com a TACO)" : "(estimativa via IA)"}
+        </span>
       </h3>
 
       {status === "loading" && !nutrition && (
@@ -90,6 +93,22 @@ export function NutritionCard({ nutrition, status, onRetry, ratio = 1 }: Props) 
               </div>
             ))}
           </div>
+          {nutrition.source === "taco" && (
+            <div className="mt-3 space-y-1 text-[11px] leading-relaxed text-cream/50">
+              <p>Fonte: {TACO_SOURCE}.</p>
+              {nutrition.approx && (
+                <p>
+                  Medidas caseiras (colher, xícara, unidade) foram convertidas em gramas de forma
+                  aproximada.
+                </p>
+              )}
+              {nutrition.unmatched && nutrition.unmatched.length > 0 && (
+                <p>
+                  Sem correspondente na tabela e fora da conta: {nutrition.unmatched.join(", ")}.
+                </p>
+              )}
+            </div>
+          )}
         </>
       )}
     </div>

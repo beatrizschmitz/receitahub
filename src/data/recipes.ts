@@ -5,7 +5,7 @@ import recipe4 from "@/assets/recipe-4.jpg";
 import recipe5 from "@/assets/recipe-5.jpg";
 import recipe6 from "@/assets/recipe-6.jpg";
 
-import { nutritionFromMacros, type RecipeNutrition } from "@/lib/recipe-nutrition";
+import type { RecipeNutrition } from "@/lib/recipe-nutrition";
 
 export type Recipe = {
   id: string;
@@ -31,7 +31,19 @@ export const recipes: Recipe[] = [
   {
     id: "risoto-cogumelos",
     servings: 4,
-    nutrition: nutritionFromMacros(12, 70, 17) ?? undefined,
+    nutrition: {
+      calories: 306,
+      protein: 8,
+      carbs: 40,
+      fat: 12,
+      source: "taco",
+      approx: true,
+      unmatched: [
+        "300 g de cogumelos paris fatiados",
+        "1 litro de caldo de legumes quente",
+        "1/2 xícara de vinho branco seco",
+      ],
+    },
     title: "Risoto cremoso de cogumelos",
     image: recipe1,
     category: "Prato principal",
@@ -59,7 +71,15 @@ export const recipes: Recipe[] = [
   {
     id: "pasta-pomodoro",
     servings: 4,
-    nutrition: nutritionFromMacros(17, 90, 11) ?? undefined,
+    nutrition: {
+      calories: 530,
+      protein: 13,
+      carbs: 84,
+      fat: 16,
+      source: "taco",
+      approx: true,
+      unmatched: [],
+    },
     title: "Spaghetti al pomodoro",
     image: recipe2,
     category: "Massa",
@@ -83,7 +103,15 @@ export const recipes: Recipe[] = [
   {
     id: "salada-rome",
     servings: 2,
-    nutrition: nutritionFromMacros(4, 20, 22) ?? undefined,
+    nutrition: {
+      calories: 349,
+      protein: 3,
+      carbs: 15,
+      fat: 33,
+      source: "taco",
+      approx: true,
+      unmatched: ["Sementes de 1 romã"],
+    },
     title: "Salada de romã & abacate",
     image: recipe3,
     category: "Salada",
@@ -108,7 +136,15 @@ export const recipes: Recipe[] = [
   {
     id: "frango-assado",
     servings: 6,
-    nutrition: nutritionFromMacros(36, 1, 22) ?? undefined,
+    nutrition: {
+      calories: 509,
+      protein: 32,
+      carbs: 2,
+      fat: 41,
+      source: "taco",
+      approx: true,
+      unmatched: [],
+    },
     title: "Frango assado com ervas",
     image: recipe4,
     category: "Prato principal",
@@ -134,7 +170,15 @@ export const recipes: Recipe[] = [
   {
     id: "torta-chocolate",
     servings: 8,
-    nutrition: nutritionFromMacros(5, 42, 33) ?? undefined,
+    nutrition: {
+      calories: 457,
+      protein: 4,
+      carbs: 44,
+      fat: 33,
+      source: "taco",
+      approx: true,
+      unmatched: ["200 g de framboesas frescas"],
+    },
     title: "Torta de chocolate & framboesa",
     image: recipe5,
     category: "Sobremesa",
@@ -158,7 +202,15 @@ export const recipes: Recipe[] = [
   {
     id: "pao-rustico",
     servings: 10,
-    nutrition: nutritionFromMacros(5, 30, 1) ?? undefined,
+    nutrition: {
+      calories: 189,
+      protein: 7,
+      carbs: 38,
+      fat: 1,
+      source: "taco",
+      approx: false,
+      unmatched: [],
+    },
     title: "Pão rústico de fermentação natural",
     image: recipe6,
     category: "Pães",

@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { generateDietPlan, type DietPlan } from "@/lib/ai.functions";
 import { PLAN_TITLE } from "@/lib/plans";
+import { TACO_SOURCE } from "@/lib/taco";
 import { formatPerKg } from "@/lib/weight";
 import {
   ACTIVITY_OPTIONS,
@@ -735,10 +736,14 @@ function DietPage() {
             </div>
 
             <p className="mt-6 text-[11px] leading-relaxed text-cream/45">
-              Estimativa calculada com a equação de Mifflin-St Jeor e faixas usuais de
-              macronutrientes. Não substitui a avaliação de um nutricionista — em caso de doença,
-              gravidez, uso de medicamentos ou transtorno alimentar, procure acompanhamento
-              profissional antes de seguir qualquer plano.
+              As metas foram calculadas com a equação de Mifflin-St Jeor e faixas usuais de
+              macronutrientes.
+              {plan.source === "taco"
+                ? ` Os nutrientes dos alimentos vêm da ${TACO_SOURCE}.`
+                : ""}{" "}
+              Não substitui a avaliação de um nutricionista — em caso de doença, gravidez, uso de
+              medicamentos ou transtorno alimentar, procure acompanhamento profissional antes de
+              seguir qualquer plano.
             </p>
 
             {plan.tips?.length ? (

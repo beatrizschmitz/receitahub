@@ -588,9 +588,32 @@ function MyRecipesPage() {
     })();
   }, [session]);
 
+  // Apagar a receita também apaga as calorias registradas com ela ("Comi isso").
+  // O banco só solta o vínculo (calorie_log.recipe_id vira NULL) e deixaria as
+  // calorias no total do dia, então os registros são removidos ANTES da receita:
+  // depois dela, o vínculo já se perdeu e não dá mais para achá-los.
   async function handleDelete(id: string) {
-    await supabase.from("user_recipes").delete().eq("id", id);
+    if (!session) return;
+    const { error: logError } = await supabase
+      .from("calorie_log")
+      .delete()
+      .eq("user_id", session.user.id)
+      .eq("recipe_id", id);
+    if (logError) {
+      console.error(logError);
+      toast.error("Não consegui apagar a receita. Tente de novo.");
+      return;
+    }
+    const { error } = await supabase.from("user_recipes").delete().eq("id", id);
+    if (error) {
+      console.error(error);
+      toast.error("Não consegui apagar a receita. Tente de novo.");
+      return;
+    }
+    setCalorieEntries((prev) => prev.filter((e) => e.recipe_id !== id));
     setRecipes((prev) => prev.filter((r) => r.id !== id));
+    setSelectedRecipe((prev) => (prev && prev.id === id ? null : prev));
+    toast.success("Receita apagada.");
   }
 
   async function handleFavorite(id: string, value: boolean) {

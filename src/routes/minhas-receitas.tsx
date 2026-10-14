@@ -552,7 +552,9 @@ function MyRecipesPage() {
                 R$ {totalSavings.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
               <p className="text-xs text-cream/40 mt-2">
-                Total economizado vs pedir delivery desde que você começou a usar o app, com base nas {costedCookedCount} refeições feitas com preço estimado disponível.
+                Vs. pedir delivery, desde que você começou a usar o app (
+                {costedCookedCount === 1 ? "1 refeição registrada" : `${costedCookedCount} refeições registradas`}
+                ).
               </p>
             </div>
             {avgSavePerMeal > 0 && (
@@ -561,12 +563,15 @@ function MyRecipesPage() {
                 <div className="font-display text-3xl text-emerald-300">
                   R$ {avgSavePerMeal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
-                <div className="text-[11px] text-cream/40">
-                  Estimativa da IA com base em pesquisas de preço médio de refeição no Brasil (Mosaiclab 2023, Ticket/Edenred 2022).
-                </div>
               </div>
             )}
           </div>
+          {costedCookedCount > 0 && (
+            <p className="text-[11px] text-cream/35 mt-4 pt-4 border-t border-emerald-500/10">
+              Preços estimados pela IA com base em pesquisas de refeição no Brasil (Mosaiclab 2023,
+              Ticket/Edenred 2022).
+            </p>
+          )}
         </div>
 
         {/* Stats */}
